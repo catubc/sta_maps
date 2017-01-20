@@ -145,9 +145,9 @@ def Rotate_images(images_raw, file_dir, file_name, overwrite_shifted):
 
 def Load_images_start_end(file_dir, file_name, images_raw):
     ''' This method aligns imaging record to electrophysiology by identifying the on and off 
-        trigger times from the original Multi-Channel-Systems .mcd 17th channel 
+        trigger times from the original Multi-Channel-Systems .mcd 17th channel. The data has already been parsed and saved as a txt file: ephys_times.txt
         
-        Other electrophysiology files will require different code for identifying the trigger time
+        Other electrophysiology files will require different code for identifying the trigger time.
     '''
     
     ephys_times_file = file_dir + file_name+ '/ephys_times.txt'
@@ -243,31 +243,6 @@ def Spike_averages_parallel_prespike_3sec_1D((args)):
     #sum_images = sum_images/len(temp3)
     
     return vectors
-
-def MCD_read_imagingtimes_old(MCDFilePath):
- 
-    #import necessary libraries
- 
-    import neuroshare as ns
-    import numpy as np
- 
-    #open file using the neuroshare bindings
-    fd = ns.File(MCDFilePath)
- 
-    #create index
-    indx = 0
- 
-    #create empty dictionary
-    data = dict()
- 
-    #loop through data and find all analog entities
- 
-    for entity in fd.list_entities():
-        #print "looping over entities: ", entity
-
-        if entity.entity_type == 1:
-            data["extra"] = fd.entities[indx]
-    return data
 
 
 def Spike_averages_parallel_globalsignalregression_1D((args)):

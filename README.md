@@ -1,5 +1,5 @@
 # sta_maps
-Spike Triggered Average Mapping Code (python)
+Spike Triggered Average Mapping Code (Python 2.7)
 
 Python code for accompanying manuscript (in review): "Mapping cortical mesoscopic networks of single spiking cortical or sub-cortical neurons", Xiao D, Vanni MP, Mitelut C, Chan AW, LeDue JM, Xie Y, Chen AC, Swindale, NV, and Murphy TH. (eLife; in review).
 
@@ -25,3 +25,7 @@ python sta_maps.py
 There are several option flags in the sta_maps.py file which can be set to compute and display motifs, STMs and STMTDs. Additional, video animations can be generated using the "animate_images" flag.
 
 Assistance can be provided by email: cat@alumni.ubc.ca.
+
+MATLAB CODE
+
+Alternative Matlab code is also available here: https://www.dropbox.com/home/nmpaper/Figure%201-source%20data%201

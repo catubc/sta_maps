@@ -3,7 +3,7 @@
 #License: MIT Copyright 2017 (C. Mitelut)
 
 import numpy as np
-from sta_utils import *
+from utils import *
 
 #***********************************************
 np.seterr(divide='ignore', invalid='ignore')        #Ignore division by zero due to divide frames that were rotated and contain unmasked pixels

@@ -150,21 +150,15 @@ def Load_images_start_end(file_dir, file_name, images_raw):
         Other electrophysiology files will require different code for identifying the trigger time
     '''
     
-    epoch_file = file_dir + file_name+ '/epochs.txt'
-    data = np.loadtxt(epoch_file)
-    start_array = data[:,0]
-    end_array = data[:,1]
+    ephys_times_file = file_dir + file_name+ '/ephys_times.txt'
+    temp_data= np.loadtxt(ephys_times_file)
 
-
-    #Load index of recording for series recordings
-    rec_index_file_name = file_dir + file_name + '/rec_index.txt'
-    if (os.path.exists(rec_index_file_name)==True):
-        rec_index = np.loadtxt(rec_index_file_name)
-        print "Recording index: ", rec_index
+    start_array = temp_data[0]
+    end_array = temp_data[-1]
 
     #Find star/end for multi-part recordings
-    img_start = start_array[int(rec_index)-1]
-    img_end = end_array[int(rec_index)-1] #temp_data[len(temp_data)-1][0]
+    img_start = start_array
+    img_end = end_array
     print "img_start: ", img_start
     print "img_end: ", img_end
 
@@ -185,8 +179,9 @@ def Load_images_start_end(file_dir, file_name, images_raw):
         img_times.append(img_start+i*len_frame)
     img_times = np.array(img_times)
     
-    return img_start, img_end, len_frame, img_rate, n_pixels, n_frames, img_times
-
+    return len_frame, img_rate, n_pixels, img_times 
+    
+    
 def Spike_averages((args)):
     global images_temp
     temp3 = args
@@ -249,6 +244,30 @@ def Spike_averages_parallel_prespike_3sec_1D((args)):
     
     return vectors
 
+def MCD_read_imagingtimes_old(MCDFilePath):
+ 
+    #import necessary libraries
+ 
+    import neuroshare as ns
+    import numpy as np
+ 
+    #open file using the neuroshare bindings
+    fd = ns.File(MCDFilePath)
+ 
+    #create index
+    indx = 0
+ 
+    #create empty dictionary
+    data = dict()
+ 
+    #loop through data and find all analog entities
+ 
+    for entity in fd.list_entities():
+        #print "looping over entities: ", entity
+
+        if entity.entity_type == 1:
+            data["extra"] = fd.entities[indx]
+    return data
 
 
 def Spike_averages_parallel_globalsignalregression_1D((args)):

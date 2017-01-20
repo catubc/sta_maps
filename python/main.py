@@ -8,6 +8,12 @@ from utils import *
 #***********************************************
 np.seterr(divide='ignore', invalid='ignore')        #Ignore division by zero due to divide frames that were rotated and contain unmasked pixels
 
+
+#******Processing info******
+window = 3      #Window of STM motif/montages in seconds
+n_procs=14      #Number of processors to use for parallel sections of code; Ensure not using more than available cores or significant slow down may occur (or crashes)
+
+
 #******************************** SET LOADING DIRECTORIES DEFAULTS *************
 main_dir = ''
 
@@ -17,16 +23,12 @@ file_names = []
 #**************** LOAD ALL FILES DATA IN EXPERIMENT DIRECTORY ****************
 file_dirs.append('2015-7-22/') 
 file_names.append([
-'2015-7-22-1',     #cortical recording          #Number of cells: 9
-#'2015-7-22-4',     #subcortical recording      #Number of cells: 30
+#'2015-7-22-1',     #cortical recording         #Total cells: 9     #Example cells with good maps or motifs: 0, 1
+'2015-7-22-4',      #subcortical recording      #Total cells: 30    #Example cells with good maps or motifs: 1
 ])
 
 #Select cells
-cell_list = [0,1,2,3,4,5,6,7,8]
-
-#******Processing info******
-window = 3      #Window of STM motif/montages
-n_procs=14      #Number of processors to use for parallel sections of code; Ensure not using more than available cores or significant slow down may occur (or crashes)
+cell_list = [1]
 
 #Meta data for generating videos and STMTDS post STM processing
 area_names = ['hindlimb', 'forelimb', 'barrel','retrosplenial','visual', 'motor', 'pta', 'acc'] 
@@ -115,7 +117,7 @@ for dir_counter, file_dir in enumerate(file_dirs):
         images_aligned = np.load(file_name_aligned)
 
         #Load start and end times of imaging system and compute required parameters
-        img_start, img_end, len_frame, img_rate, n_pixels, n_frames, img_times = Load_images_start_end(file_dir, file_name, images_aligned)
+        len_frame, img_rate, n_pixels, img_times = Load_images_start_end(file_dir, file_name, images_aligned)
         print "Imaging rate: ", img_rate
             
 
@@ -161,9 +163,11 @@ for dir_counter, file_dir in enumerate(file_dirs):
                     #Search for Min and Max pixels
                     Compute_STMTD(unit, channel, spikes, file_dir, file_name, img_rate, window, n_procs, area_names, depth, sides, stm_types, spiking_modes)
 
+
                 #Plot STMTDs if computed
                 if view_stmtd:
                     View_STMTD(unit, channel, spikes, window, len_frame, file_dir, file_name, area_names, sides, stm_types, spiking_modes)
+
 
                 #Make animated STMTD videos
                 if animate_images: 

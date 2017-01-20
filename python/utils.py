@@ -150,31 +150,10 @@ def Load_images_start_end(file_dir, file_name, images_raw):
         Other electrophysiology files will require different code for identifying the trigger time
     '''
     
-    mcd_file = file_dir + file_name+ '/' + file_name + '.mcd'
-    if (os.path.exists(mcd_file)==True):
-        data = MCD_read_imagingtimes_old(mcd_file)
-
-        print "Finding beginning and end of imaging trigger on channel 17th .mcd file"
-        temp_data = []
-        for i in range(data['extra'].item_count):
-            temp_data.append(data['extra'].get_data(i)) 
-        temp_data = np.array(temp_data)[:,0]    #Select time column only from 17th channel
-
-        start_array = []
-        end_array = []
-        start_array.append(temp_data[0])
-        for i in range(1,len(temp_data)-1,1):
-            if temp_data[i+1]-temp_data[i]>1.0:
-                end_array.append(temp_data[i])
-                start_array.append(temp_data[i+1])
-        end_array.append(temp_data[-1])
-
-    else:
-        #Load epoch.txt file
-        epoch_file = file_dir + file_name+ '/epochs.txt'
-        data = np.loadtxt(epoch_file)
-        start_array = data[:,0]
-        end_array = data[:,1]
+    epoch_file = file_dir + file_name+ '/epochs.txt'
+    data = np.loadtxt(epoch_file)
+    start_array = data[:,0]
+    end_array = data[:,1]
 
 
     #Load index of recording for series recordings
@@ -270,30 +249,6 @@ def Spike_averages_parallel_prespike_3sec_1D((args)):
     
     return vectors
 
-def MCD_read_imagingtimes_old(MCDFilePath):
- 
-    #import necessary libraries
- 
-    import neuroshare as ns
-    import numpy as np
- 
-    #open file using the neuroshare bindings
-    fd = ns.File(MCDFilePath)
- 
-    #create index
-    indx = 0
- 
-    #create empty dictionary
-    data = dict()
- 
-    #loop through data and find all analog entities
- 
-    for entity in fd.list_entities():
-        #print "looping over entities: ", entity
-
-        if entity.entity_type == 1:
-            data["extra"] = fd.entities[indx]
-    return data
 
 
 def Spike_averages_parallel_globalsignalregression_1D((args)):

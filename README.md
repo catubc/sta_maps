@@ -13,7 +13,7 @@ Processing requirements are at least 32GB of ram and preferably a multi-core pro
 
 There are several python module dependencies including: numpy, math, mutiplrociseing, scipy, PIL, subprocess and others. They are all standard packages that can be installed using pip or other common methods.
 
-The code was written to load Multi-Channel-Systems ephys files that align to imaging data. We provide examples of data recorded cortically and subcortically here: [https://www.dropbox.com/sh/chet957crw41267/AADgke5NMnM__f4L4PDaK4QHa?dl=0.]
+The code was written to load Multi-Channel-Systems ephys files that align to imaging data. We provide examples of data recorded cortically and subcortically here: [source data on dropbox] (https://www.dropbox.com/sh/chet957crw41267/AADgke5NMnM__f4L4PDaK4QHa?dl=0).
 
 The ephys trigger file (.mcd) and the imaging data (.npy) files should be downloaded and saved into the appropriate directories.
 
@@ -31,5 +31,4 @@ Assistance can be provided by email: cat@alumni.ubc.ca.
 
 ###**Matlab Code***
 
-Alternative Matlab code with some of the functions above is also available here:
-https://www.dropbox.com/home/nmpaper/Figure%201-source%20data%201
+Alternative Matlab code with some of the functions above is also available here [Matlab code and source data] (https://www.dropbox.com/home/nmpaper/Figure%201-source%20data%201).

@@ -1,12 +1,12 @@
 # sta_maps
-Spike Triggered Average Mapping Code (Python 2.7)
+**Spike Triggered Average Mapping Code (Python 2.7)**
 
 Python code for accompanying manuscript (in review): "Mapping cortical mesoscopic networks of single spiking cortical or sub-cortical neurons", Xiao D, Vanni MP, Mitelut C, Chan AW, LeDue JM, Xie Y, Chen AC, Swindale, NV, and Murphy TH. (eLife; in review).
 
 The script computes spike-triggered-average motifs (or montages), spike-triggered-maps (STMs) and spike-triggered-map temporal dynamics (STMTDs). 
 
 
-DEPENDENCIES AND DOWNLOADS
+**Dependencies and Source Data**
 
 Processing requirements are at least 32GB of ram and preferably a multi-core processor. 
 
@@ -17,8 +17,7 @@ The code was written to load Multi-Channel-Systems ephys files that align to ima
 The ephys trigger file (.mcd) and the imaging data (.npy) files should be downloaded and saved into the appropriate directories.
 
 
-INSTRUCTIONS FOR RUNNING CODE
-
+**Instructions for Running Code**
 The code is a simplified version of our scripts. It should be run using python 2.7 using the command:
 python sta_maps.py
 
@@ -26,6 +25,7 @@ There are several option flags in the sta_maps.py file which can be set to compu
 
 Assistance can be provided by email: cat@alumni.ubc.ca.
 
-MATLAB CODE
+**Matlab Code***
 
-Alternative Matlab code is also available here: https://www.dropbox.com/home/nmpaper/Figure%201-source%20data%201
+Alternative Matlab code with some of the functions above is also available here:
+https://www.dropbox.com/home/nmpaper/Figure%201-source%20data%201

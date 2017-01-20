@@ -22,7 +22,7 @@ file_names.append([
 ])
 
 #Select cells
-cell_list = [4]
+cell_list = [0,1,2,3,4,5,6,7,8]
 
 #******Processing info******
 window = 3      #Window of STM motif/montages
@@ -66,8 +66,8 @@ compute_stm = True
 
 
 #Flags for STMTD computations
-compute_stmtd = True
-view_stmtd = True
+compute_stmtd = False
+view_stmtd = False
 
 
 #Flag for making videos of STM and STMTDs
@@ -153,7 +153,7 @@ for dir_counter, file_dir in enumerate(file_dirs):
 
                 #Preview STM for each cell
                 if view_sta_motif:
-                    View_sta_motif(unit, main_dir, file_dir, file_name, stm_types, img_rate, spiking_modes)
+                    View_sta_motif(unit, main_dir, file_dir, file_name, stm_types, img_rate, spiking_modes, n_spikes)
 
 
                 #Search Max/Min, Save Time Courses

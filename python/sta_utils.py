@@ -581,7 +581,7 @@ def Compute_sta_motif(unit, channel, all_spikes, window, img_rate, img_times, n_
             print "Skipping processing of images ... loading from file"
             images_processed = np.load(npy_file_name+'.npy')
    
-def View_sta_motif(unit, main_dir, file_dir, file_name, stm_types, img_rate, spiking_modes):
+def View_sta_motif(unit, main_dir, file_dir, file_name, stm_types, img_rate, spiking_modes, n_spikes):
     
     print "... viewing STA motifs..."
     
@@ -651,7 +651,7 @@ def View_sta_motif(unit, main_dir, file_dir, file_name, stm_types, img_rate, spi
         cbar.ax.set_yticklabels([str(round(v_min*100,1))+"%", '0'+"%", str(round(v_max*100,1))+"%"])  # vertically oriented colorbar
         cbar.ax.tick_params(labelsize=15) 
         
-    plt.suptitle("Experiment: " + file_name + "  unit: "+str(unit), fontsize=15)
+    plt.suptitle("Experiment: " + file_name + "  unit: "+str(unit) + "   #spikes: "+str(n_spikes), fontsize=15)
     plt.show()
 
         
@@ -1470,7 +1470,7 @@ def Compute_STM(img_rate, window, n_procs, main_dir, file_dir, file_name, n_pixe
 
         im = plt.imshow(image_loaded, vmin=v_min, vmax=v_max)
 
-        plt.title("STM:    " + stm_filename, fontsize=20)
+        plt.title("Experiment: " + file_name + "   unit:    " + str(unit) + "   #spikes: "+str(n_spikes), fontsize=20)
 
         cbar = fig.colorbar(im, ticks = [v_min, 0, v_max], ax=ax, shrink=.5, pad=.1, aspect=5)
         cbar.ax.set_yticklabels([str(round(v_min*100,1))+"%", '0'+"%", str(round(v_max*100,1))+"%"])  # vertically oriented colorbar
@@ -1838,7 +1838,7 @@ def View_STMTD(unit, channel, spikes, window, len_frame, file_dir, file_name, ar
         plt.xlabel("Time (sec)", fontsize = labelsize)
 
 
-        plt.suptitle(file_name + " Unit: " + str(unit).zfill(2) + " Channel: " + str(channel).zfill(2) + " No. of spikes: " + str(len(spikes)), fontsize=labelsize)
+        plt.suptitle(file_name + " Unit: " + str(unit).zfill(2) + " Channel: " + str(channel).zfill(2) + " No. of spikes: " + str(n_spikes), fontsize=labelsize)
 
         #npy_file_name = file_dir + file_name + '/img_avg_' + file_name+ '_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'_'+plot_string+'_'+str(window)+'sec_window'
 

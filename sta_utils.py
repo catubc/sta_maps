@@ -367,7 +367,7 @@ def Compute_sta_motif(unit, channel, all_spikes, window, img_rate, img_times, n_
 
         #if (overwrite) or (os.path.exists(stack_file_name+'.npy')==False):
         if (overwrite) or (os.path.exists(npy_file_name+'.npy')==False):
-            images_temp = np.array(images_aligned.copy(), dtype=np.float32)
+            images_temp = np.array(images_aligned.copy(), dtype=np.float32) #This is an inneficient and memory consuming approach; should modify eventually
 
             #Use allspikes
             if stm_type =='all':
@@ -583,7 +583,7 @@ def Compute_sta_motif(unit, channel, all_spikes, window, img_rate, img_times, n_
    
 def View_sta_motif(unit, main_dir, file_dir, file_name, stm_types, img_rate, spiking_modes):
     
-    print "... viewing STMs..."
+    print "... viewing STA motifs..."
     
     #Select # of frames to average for display purposes only
     if img_rate < 32:       block = 10  #Number of frames to average for each frame plotted below
@@ -1360,16 +1360,6 @@ def Ablate_outside_area(n_pixels, contour_coords):
             
     return ablate_coords
 
-    
-def Add_triple_arrays(coords1, coords2, coords3):
-    
-    coords = []
-    if len(coords1)>0: coords.extend(coords1)
-    if len(coords2)>0: coords.extend(coords2)
-    if len(coords3)>0: coords.extend(coords3)
-    
-    return coords
-
 def Add_double_arrays(bregma_coords_temp, generic_coords):
     coords = np.array(np.vstack((bregma_coords_temp, generic_coords)), dtype=np.int16)
     
@@ -1555,10 +1545,15 @@ def Load_max_maps(ptps, file_dir, file_name):
 
 
 def Mp_max((temp_array1)):
+    ''' Paralellized spaghetti code to manually mask out 
+    '''
+    
     global coords_temp
     
+    
     for j in range(len(coords_temp)):
-        temp_array1[coords_temp[j][0]][coords_temp[j][1]] = -1000
+        if temp_array1[coords_temp[j][0]][coords_temp[j][1]] == 0:  #Only overwrite non-masked values
+            temp_array1[coords_temp[j][0]][coords_temp[j][1]] = -1000
 
     return temp_array1
 
@@ -1567,7 +1562,8 @@ def Mp_min((temp_array2)):
     global coords_temp
 
     for j in range(len(coords_temp)):
-        temp_array2[coords_temp[j][0]][coords_temp[j][1]] = 1000
+        if temp_array1[coords_temp[j][0]][coords_temp[j][1]] == 0:  #Only overwrite non-masked values
+            temp_array2[coords_temp[j][0]][coords_temp[j][1]] = 1000
 
     return temp_array2
 
@@ -1637,31 +1633,22 @@ def Compute_STMTD(unit, channel, spikes, file_dir, file_name, img_rate, window, 
                 for i in range(len(images_processed)):
                     temp_array[i] = np.ma.array(images_processed[i], mask=coords_temp, fill_value = 0., hard_mask = True)
                 
+                #Not sure all this masked array architecture is required.
                 temp_max_array = []
                 temp_min_array = []
                 temp_array1 = np.ma.array(np.zeros((int(img_rate*2),n_pixels,n_pixels)), mask=True)
                 temp_array2 = np.ma.array(np.zeros((int(img_rate*2),n_pixels,n_pixels)), mask=True)
-                #temp_array1 = np.zeros((int(img_rate*2),n_pixels,n_pixels), dtype=np.float32)
-                #temp_array2 = np.zeros((int(img_rate*2),n_pixels,n_pixels), dtype=np.float32)
                 for i in range(int(img_rate*2)):     #This searches +/- 1 sec from time = 0 sec; OR Maximum to begining of data;
                     temp_array1[i] = np.ma.array(temp_array[int(window*img_rate)-int(img_rate)+i]).copy()
                     temp_array2[i] = np.ma.array(temp_array[int(window*img_rate)-int(img_rate)+i]).copy()
-                    #temp_array1[i] = temp_array[int(window*img_rate)-int(img_rate)+i].copy()
-                    #temp_array2[i] = temp_array[int(window*img_rate)-int(img_rate)+i].copy()
-
-                temp_array1._sharedmask=False
-                temp_array2._sharedmask=False
 
 
-                #Set masked background values to very large/very low values to not confuse search for max/min values
-                pool = mp.Pool(n_procs)
-                temp_max_array.extend(pool.map(Mp_max, temp_array1))
-                pool.close()
+                #temp_array1._sharedmask=False
+                #temp_array2._sharedmask=False
 
-                pool = mp.Pool(n_procs)
-                temp_min_array.extend(pool.map(Mp_min, temp_array2))
-                pool.close()
-
+                temp_max_array=temp_array1
+                temp_min_array=temp_array2
+                
                 #Search for max value using 1D unravel of temp_arrays; assign location of max/min index; detect max/min values overall;
                 temp1_array = np.ma.array(np.zeros((int(img_rate*2),n_pixels,n_pixels)), mask=True)
                 for k in range(len(temp_max_array)):
@@ -1761,6 +1748,8 @@ def View_STMTD(unit, channel, spikes, window, len_frame, file_dir, file_name, ar
     ''' Loads and displays STMTDs already computed    
     '''
     
+    print "...viewing STMTDs..."
+    
     colours = ['blue', 'red','green', 'magenta', 'cyan', 'orange', 'brown', 'pink', 'yellow', 'grey']
     labelsize = 30
 
@@ -1788,7 +1777,6 @@ def View_STMTD(unit, channel, spikes, window, len_frame, file_dir, file_name, ar
                     for maxmin in ['max_value', 'min_value']:
                         roi_names.append(rows[ctr])
                         ctr+=1
-            print roi_names
             
             #Load time course labels
             roi_stmtds=[]
@@ -1797,7 +1785,6 @@ def View_STMTD(unit, channel, spikes, window, len_frame, file_dir, file_name, ar
                     for maxmin in ['max_value', 'min_value']:
                         roi_stmtds.append(rows[ctr])
                         ctr+=1
-            print roi_stmtds[0]
             
         
         #Plot left side STMTDs

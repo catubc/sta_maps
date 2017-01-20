@@ -21,8 +21,8 @@ file_names.append([
 #'2015-7-22-4',     #subcortical recording      #Number of cells: 30
 ])
 
-#Select 
-cell_list = [1]
+#Select cells
+cell_list = [4]
 
 #******Processing info******
 window = 3      #Window of STM motif/montages
@@ -57,8 +57,8 @@ stm_types = ["all"]     # Must insert spiking type to process data below; curren
 
 #Flags for computing sta motifs;
 compute_sta_motif = True
-overwrite = False                       #Overwrite existing STM data if already computed
-view_sta_motif = False                  #View each unit's STM after processing
+overwrite = False                           #Overwrite existing STM data if already computed
+view_sta_motif = True                       #View each unit's STM after processing
 
 
 #Flags for computing STMs
@@ -66,8 +66,8 @@ compute_stm = True
 
 
 #Flags for STMTD computations
-compute_stmtd = False
-view_stmtd = False
+compute_stmtd = True
+view_stmtd = True
 
 
 #Flag for making videos of STM and STMTDs

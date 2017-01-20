@@ -6,15 +6,18 @@ import re
 import sys
 import struct, array, csv
 import scipy.optimize 
+
+from matplotlib import animation
 import matplotlib.mlab as mlab
 
 from scipy import stats
 from scipy import signal
 from pylab import *
+
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
 from scipy.interpolate import UnivariateSpline
-from matplotlib import animation
+
 from PIL import Image
 
 from sta_utils import *
@@ -28,7 +31,7 @@ main_dir = ''
 file_dirs = []
 file_names = []
 
-#############**************** LOAD ALL FILES DATA IN EXPERIMENT DIRECTORY ****************
+#**************** LOAD ALL FILES DATA IN EXPERIMENT DIRECTORY ****************
 file_dirs.append('2015-7-22/') 
 file_names.append([
 '2015-7-22-1',     #cortical recording          #Number of cells: 9
@@ -40,44 +43,65 @@ cell_list = [1]
 
 #******Processing info******
 window = 3      #Window of STM motif/montages
-n_procs=14      #Number of processors to use for parallel sections of code
+n_procs=14      #Number of processors to use for parallel sections of code; Ensure not using more than available cores or significant slow down may occur (or crashes)
 
 #Meta data for generating videos and STMTDS post STM processing
 area_names = ['hindlimb', 'forelimb', 'barrel','retrosplenial','visual', 'motor', 'pta', 'acc'] 
 sides = ['left','right']
 
-#Spiking modes to use for computing STMs
-spiking_modes = ['burst', 'last', 'tonic', 'first']
-stm_types = ["all"]     #Types of firing modes ["all", "modes"] #Other types not in use;
+#Spiking modes to use for computing STMs;  #Current available modes: ['burst', 'last', 'tonic', 'first']
+spiking_modes = ['last', 'burst']
 
-    #NB: for 'modes' data need to generate an input text file with extention "_grouped_spikes.txt" containing spike times (in seconds) from each mode on separate lines; 
-    #For example: filename:  "unit_01_channel_06_ptp_037_imagingspikes_grouped_spikes.txt"
-    #line 1: "28.072, 29.431, 30.626, 30.640 ..."
-    #line 2: "14.944, 15.889, 28.089, 29.490 ..."
-    #line 3: "8.657, 9.998, 12.134, 12.835 ..."
-    #line 4: "13.547, 14.98, 26.120, 28.308 ..."
+''' NB: for 'modes' option, need to generate an input text file with extention "_grouped_spikes.txt" containing each spiking mode in simple text format, 
+        followed by spike times (in seconds) from each mode on separate lines.
+    
+    For example: filename:  "unit_01_channel_06_ptp_037_imagingspikes_grouped_spikes.txt".
+    - line 1: "burst" 
+    - line 2: "last"
+    - line 3: "tonic"
+    - line 4: "first"
+    - line 5: "28.072, 29.431, 30.626, 30.640 ..."  <- spikes belonging to spikes in the middle of a burst
+    - line 6: "14.944, 15.889, 28.089, 29.490 ..."  <- spikes belonging to last spike in a burst
+    - line 7: "8.657, 9.998, 12.134, 12.835 ..."    <- spikes belonging to tonic modes
+    - line 8: "13.547, 14.98, 26.120, 28.308 ..."   <- spikes belonging to first spike in a burst
 
-    #Additional modes can be defined by changing the spiking modes name in the code; Or by simply re-purposing existing labels to a different class of spikes
+    Additional modes can be defined by changing the spiking modes name in the code; or by simply re-purposing existing labels to a different class of spikes.
+'''
 
-#Flast for computing sta maps;
-sta_maps = True
-overwrite = False                        #Overwrite existing STM data if already computed
-view_stms = False            #View each unit's STM after processing
-search_max_min = True
+stm_types = ["all"]     # Must insert spiking type to process data below; current options are: "all" or "modes"; 
+                          # 'modes' option is defined above and requires a separate text file 
 
-#Set this flag along with the correct unit number to compute STMs for all motifs in a recording; This is used for other processing
+
+#Flags for computing sta motifs;
+compute_sta_motif = True
+overwrite = False                       #Overwrite existing STM data if already computed
+view_sta_motif = False                  #View each unit's STM after processing
+
+
+#Flags for computing STMs
+compute_stm = True
+
+
+#Flags for STMTD computations
+compute_stmtd = False
+view_stmtd = False
+
+
+#Flag for making videos of STM and STMTDs
+animate_images = False
+
+
+#Set this flag along with the correct unit number to compute STMs for all motifs in a recording; This is used for other processing (not included here).
 random_flag = False  
 
-#Static maps - SUA and LFP
-sua_static_maps = False             #make maxmap and minmap data files 
-lfp_static_maps = False
 
 #****************************************************************************************
 #Loop over experiments 
 for dir_counter, file_dir in enumerate(file_dirs):
 
     for file_name in file_names[dir_counter]:
-
+        ''' These loops search for and load spike rasters saved in .csv files. The raster filenames contain metadata such as # of spikes, channel, and PTP max.
+        '''
         #Load units from .csv file name; 
         files = os.listdir(file_dir+file_name)
         temp_names = []
@@ -112,9 +136,12 @@ for dir_counter, file_dir in enumerate(file_dirs):
         print "Imaging rate: ", img_rate
             
 
+        ''' After loading spike rasters and aligned imaging data, can proceed to compute and visualize sta-motifs, STMTDs, or STMs.
+        '''
+        
         #********************************COMPUTE SPIKE-TRIGGERED-MOTIFS********************************************
         #Compute and plot motifs: multi-frame representations of activity locked to spiking
-        if sta_maps:
+        if compute_sta_motif or view_sta_motif or compute_stmtd or view_stmtd or animate_images:
             print "No. units: ", len(units)
             print "OVERWRITE: ", overwrite
 
@@ -129,60 +156,41 @@ for dir_counter, file_dir in enumerate(file_dirs):
                 if True:
                     if unit not in cell_list: continue            
     
-                #Load sorted spikes for unit
-                spikes = np.loadtxt(file_dir+file_name+'/unit_'+str(unit).zfill(2)+ '_channel_' + str(channel).zfill(2) + '_ptp_'+str(ptp).zfill(3)+'.csv')
-                
                 #Determine if there are spikes in recording window to continue; Required as some units are sparsely firing
+                spikes = np.loadtxt(file_dir+file_name+'/unit_'+str(unit).zfill(2)+ '_channel_' + str(channel).zfill(2) + '_ptp_'+str(ptp).zfill(3)+'.csv')
                 temp0 = np.where(np.logical_and(spikes>=img_times[0]+window, spikes<=img_times[-1]-window))[0]
                 spikes_in_window = spikes[temp0]
-                if len(spikes_in_window) == 0: 
-                    print "Zero spikes in window - skip unit"; continue
+                if len(spikes_in_window) == 0:  print "Zero spikes in window - skip unit"; continue
                 
                 n_spikes = len(spikes_in_window)  #NB: Save n_spikes value just for current epoch for continuous recordings
 
                 #Compute and view motifs
-                images_processed, spikes, plot_string = Compute_spike_triggered_average(unit, channel, spikes, window, img_rate, img_times, n_pixels, 
-                                                            images_aligned, file_dir, file_name, n_procs, overwrite, stm_types, random_flag, spiking_modes)
+                Compute_sta_motif(unit, channel, spikes, window, img_rate, img_times, n_pixels, images_aligned, file_dir, file_name, n_procs, 
+                                  overwrite, stm_types, random_flag, spiking_modes)
 
                 #Preview STM for each cell
-                if view_stms:
-                    view_static_stm(unit, main_dir, file_dir, file_name, stm_types, img_rate, spiking_modes)
+                if view_sta_motif:
+                    View_sta_motif(unit, main_dir, file_dir, file_name, stm_types, img_rate, spiking_modes)
 
 
                 #Search Max/Min, Save Time Courses
-                if search_max_min:
-                    
+                if compute_stmtd:
                     #Search for Min and Max pixels
-                    Max_plot, Min_plot, Max_pixel_value, Min_pixel_value, Max_index, Min_index, area_names, images_areas = \
-                        Search_max_min(unit, channel, spikes, file_dir, file_name, img_rate, window, n_procs, area_names, depth, sides, stm_types, spiking_modes)
+                    Compute_STMTD(unit, channel, spikes, file_dir, file_name, img_rate, window, n_procs, area_names, depth, sides, stm_types, spiking_modes)
 
-                    #Save time course .npy file and figures
-                    print "Saving time course for unit : ", unit, " ..."
-                    Save_time_course(unit, channel, spikes, Max_plot, Min_plot, Max_index, Min_index, window, len_frame, file_dir, file_name, area_names, sides, stm_types, spiking_modes)
+                #Plot STMTDs if computed
+                if view_stmtd:
+                    View_STMTD(unit, channel, spikes, window, len_frame, file_dir, file_name, area_names, sides, stm_types, spiking_modes)
 
-
+                #Make animated STMTD videos
                 if animate_images: 
-                    Animate_images(unit, channel, window, img_rate, images_areas, file_dir, file_name, n_pixels, spikes, plot_string, n_procs, generic_mask_indexes, 
-                        Max_plot, Min_plot, Max_pixel_value, Min_pixel_value, Max_index, Min_index, area_names, sides, depth)
+                    Animate_images(unit, channel, window, img_rate, main_dir, file_dir, file_name, n_pixels, spikes, plot_string, n_procs, area_names, sides, depth, stm_types, spiking_modes)
                 
-                
-                #*********** Generate ROI matrix and time courses
-                if False:
-                    
-                    images_areas = Load_areas_and_mask(depth, unit, channel, n_pixels, main_dir, file_dir, file_name, images_processed, area_names, sides)
-                    
-                    average_areas = Average_roi(images_areas, img_rate, window, n_procs, area_names, sides)
-
-                    Plot_matrix_maps(average_areas, file_dir, file_name, area_names, img_rate, unit, spikes, channel, ptp)
-
-
-                print "...done."
-                print " "
-       
+      
         #************************************COMPUTE STMS********************************************
-        #Compute and plot Spike-Triggered-Maps (STMS): single frame representations of activity locked to spiking
+        #Compute and plot Spike-Triggered-Maps (STMS): single frame representations of activity locked to spiking (see Xiao et al Methods)
         #Need to compute motifs first (see above) 
-        elif sua_static_maps:
+        if compute_stm:
             
             for i in range(len(units)):
                 print "*Processing ", file_name, " unit: ", i+1, " of ", len(units), " unit name: ", units[i]
@@ -206,22 +214,6 @@ for dir_counter, file_dir in enumerate(file_dirs):
                 n_spikes = len(spikes_in_window)  #NB: Save n_spikes value just for current epoch for continuous recordings
 
                 #*********** Compute static maps +/- 1sec from spike rasters
-                plotting = True     #View STM maps;
-                Compute_static_maps_max(img_rate, window, n_procs, main_dir, file_dir, file_name, n_pixels, unit, channel, n_spikes, ptp, stm_types, plotting, spiking_modes)
+                Compute_STM(img_rate, window, n_procs, main_dir, file_dir, file_name, n_pixels, unit, channel, n_spikes, ptp, stm_types, spiking_modes)
                 
        
-        #************************************COMPUTE LFP TRIGGERED MAPS********************************************
-        #Compute and plot LFP Amplitude generated maps
-        if lfp_static_maps:
-            n_pixels = 256
-
-            file_name_aligned = file_dir + file_name+'/'+file_name+'_images_aligned.npy'
-            if (os.path.exists(file_name_aligned)==False):
-                images_raw = Load_images(file_dir, file_name)
-                images_rotated = Rotate_images(images_raw, file_dir, file_name, overwrite_shifted)
-                images_aligned = Define_bregma_lambda(images_rotated, main_dir, file_dir, file_name)
-            else:
-                images_aligned = np.load(file_name_aligned)
-            
-            Compute_lpf_static_maps(file_dir, file_name, images_aligned, img_start, img_end, len_frame, img_rate, n_pixels, n_frames, img_times)
-

@@ -21,6 +21,8 @@ from scipy.optimize import curve_fit
 from scipy.interpolate import UnivariateSpline
 
 import matplotlib.mlab as mlab
+import matplotlib.patches as mpatches
+
 from scipy import ndimage
 
 import PIL
@@ -360,7 +362,7 @@ def Sum_list((temp_list)):
         temp_sum += temp_list[i]
     return temp_sum
     
-def Compute_spike_triggered_average(unit, channel, all_spikes, window, img_rate, img_times, n_pixels, images_aligned, file_dir, file_name, n_procs, overwrite, stm_types, random_flag, spiking_modes):
+def Compute_sta_motif(unit, channel, all_spikes, window, img_rate, img_times, n_pixels, images_aligned, file_dir, file_name, n_procs, overwrite, stm_types, random_flag, spiking_modes):
     '''Computes average frame values from t=-window .. +window (usually 180 to 270 frames) '''
     
     global images_temp, temp_window, temp_img_rate, temp_n_pixels
@@ -462,7 +464,6 @@ def Compute_spike_triggered_average(unit, channel, all_spikes, window, img_rate,
                 
                 #Multiple spiking modes
                 if stm_type =='modes':      
-                    mode_spikes = []
                     print file_out[:-4]+"_imagingspikes_grouped_spikes.txt"
                     
                     #Here loading the spikes for each mode; Each row contains the spikes for each mode in txt format to be human readable
@@ -472,53 +473,65 @@ def Compute_spike_triggered_average(unit, channel, all_spikes, window, img_rate,
                         print "See sta_maps.py code for details on how to generate mode spiking file..."
                         quit()
                         
+                    mode_spikes = []
+                    mode_names = []
                     with open(file_out[:-4]+"_imagingspikes_grouped_spikes.txt", 'rt') as inputfile:
                         reader = csv.reader(inputfile)
                         for row in reader:
+                            if len(row)<20: 
+                                mode_names.append(row[0])               #Read names of modes; They should all be less than 20 characters
+                            else:
+                                mode_spikes.append(np.float32(row))     #Break the loop, first save the data as spiking data.
+                                break
+                                
+                        for row in reader:
                             mode_spikes.append(np.float32(row))
-                            
-                    #Load spiking modes from disk
-                    for m in range(len(mode_spikes)): 
-                        npy_file_name = file_dir + file_name + '/img_avg_' + file_name+ '_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'_'+ \
-                                        stm_type+'_'+str(window)+'sec_window_'+str(len(spikes)).zfill(5)+"_spikes_"+spiking_modes[m]
-                        
-                        if os.path.exists(npy_file_name+'.npy')==False: 
-                                        
-                            temp3 = []
-                            for i in mode_spikes[m]:        #temp3 contains all the frame indexes from img_times for each spike in raster; e.g. 180 frames for each spike automatically aligned
-                                temp3.append(np.where(np.logical_and(img_times>=i-window, img_times<=i+window))[0][0:2*int(window*img_rate)]) #Fixed this value or could be off +/-1 frame
                     
-                            #Initialize list to capture data and store frame sequences;  Make MP Pool for spiking mode
-                            print "... computing spiking mode: ", spiking_modes[m], "  #spikes: ", len(mode_spikes[m])
-                            images_triggered_temp=[]
-                            temp4 = []  #Contains only first spikes from bursts in cell
+                    #Load spiking modes from disk
+                    for n in range(len(spiking_modes)): 
+                        for m in range(len(mode_spikes)): 
+                            if mode_names[m]!=spiking_modes[n]: continue       #Search spiking rasters text file for matching mode indicated in spiking_modes file
+    
+                            npy_file_name = file_dir + file_name + '/img_avg_' + file_name+ '_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'_'+ \
+                                            stm_type+'_'+str(window)+'sec_window_'+str(len(spikes)).zfill(5)+"_spikes_"+spiking_modes[n]
                             
-                            pool = mp.Pool(n_procs)
-                            chunks = int(len(mode_spikes[m])/n_procs) #Break up the temp3 array into n_procs that are "chunk" long each
-                            for i in range(n_procs):
-                                temp4.append(temp3[i*chunks: (i+1)*chunks])
-
-                            print "Removing average of all pre spike frames - (time: -", window, "sec .. 0sec)"
-                            images_triggered_temp.extend(pool.map(Spike_averages_parallel_prespike_3sec, temp4))
-                            
-                            pool.close()
-                            print "... done "
-
-                            #Computing averages spikes
-                            print "Summing Number of chunks: ", len(images_triggered_temp)
-
-                            temp_images = np.zeros((int(window*img_rate)*2, n_pixels, n_pixels), dtype=np.float16)
-                            for i in range(len(images_triggered_temp)):
-                                temp_images += images_triggered_temp[i]
-                            
-                            #DIVIDE BY NUMBER OF CHUNKS; Note used to be divided by number of spikes; also residue is being thrown out...
-                            images_processed = temp_images/float(len(images_triggered_temp))
-
-                            np.save(npy_file_name, images_processed)
+                            if os.path.exists(npy_file_name+'.npy')==False: 
+                                            
+                                temp3 = []
+                                for i in mode_spikes[m]:        #temp3 contains all the frame indexes from img_times for each spike in raster; e.g. 180 frames for each spike automatically aligned
+                                    temp3.append(np.where(np.logical_and(img_times>=i-window, img_times<=i+window))[0][0:2*int(window*img_rate)]) #Fixed this value or could be off +/-1 frame
                         
-                        else:
-                            images_processed = np.load(npy_file_name+'.npy')
-                
+                                #Initialize list to capture data and store frame sequences;  Make MP Pool for spiking mode
+                                print "... computing spiking mode: ", spiking_modes[n], "  #spikes: ", len(mode_spikes[m])
+                                images_triggered_temp=[]
+                                temp4 = []  #Contains only first spikes from bursts in cell
+                                
+                                pool = mp.Pool(n_procs)
+                                chunks = int(len(mode_spikes[m])/n_procs) #Break up the temp3 array into n_procs that are "chunk" long each
+                                for i in range(n_procs):
+                                    temp4.append(temp3[i*chunks: (i+1)*chunks])
+
+                                print "Removing average of all pre spike frames - (time: -", window, "sec .. 0sec)"
+                                images_triggered_temp.extend(pool.map(Spike_averages_parallel_prespike_3sec, temp4))
+                                
+                                pool.close()
+                                print "... done "
+
+                                #Computing averages spikes
+                                print "Summing Number of chunks: ", len(images_triggered_temp)
+
+                                temp_images = np.zeros((int(window*img_rate)*2, n_pixels, n_pixels), dtype=np.float16)
+                                for i in range(len(images_triggered_temp)):
+                                    temp_images += images_triggered_temp[i]
+                                
+                                #DIVIDE BY NUMBER OF CHUNKS; Note used to be divided by number of spikes; also residue is being thrown out...
+                                images_processed = temp_images/float(len(images_triggered_temp))
+
+                                np.save(npy_file_name, images_processed)
+                            
+                            else:
+                                images_processed = np.load(npy_file_name+'.npy')
+                    
                 #Use all spikes for STMs.
                 else: 
                     #Compute all frames based on image index;
@@ -601,9 +614,7 @@ def Compute_spike_triggered_average(unit, channel, all_spikes, window, img_rate,
             print "Skipping processing of images ... loading from file"
             images_processed = np.load(npy_file_name+'.npy')
    
-    return images_processed, spikes, stm_type
-
-def view_static_stm(unit, main_dir, file_dir, file_name, stm_types, img_rate, spiking_modes):
+def View_sta_motif(unit, main_dir, file_dir, file_name, stm_types, img_rate, spiking_modes):
     
     print "... viewing STMs..."
     
@@ -668,16 +679,7 @@ def view_static_stm(unit, main_dir, file_dir, file_name, stm_types, img_rate, sp
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
 
-    
-        #Colorbar
-        #from mpl_toolkits.axes_grid1 import make_axes_locatable #Used for colorbar; allocates a bit of space for it
-
-        #divider = make_axes_locatable(plt.gca())
-        #cax = divider.append_axes("right", "2%", pad="1%")
-        #cbar = plt.colorbar(im, cax=cax, ticks=[v_min, 0, v_max], orientation='vertical')
-        
-        #cbar.ax.set_yticklabels([str(round(v_min*100,1))+'%', '0%', str(round(v_max*100,1))+'%'])  # horizontal colorbar
-
+        #Plot color bar
         cbar = fig.colorbar(im, ticks = [v_min, 0, v_max], ax=ax, fraction=0.02, pad=0.05, aspect=3)
         cbar.ax.set_yticklabels([str(round(v_min*100,1))+"%", '0'+"%", str(round(v_max*100,1))+"%"])  # vertically oriented colorbar
         cbar.ax.tick_params(labelsize=15) 
@@ -1436,10 +1438,11 @@ def Load_areas_and_mask(depth, unit, channel, n_pixels, main_dir, file_dir, file
 
 
 
-def Compute_static_maps_max(img_rate, window, n_procs, main_dir, file_dir, file_name, n_pixels, unit, channel, n_spikes, ptp, stm_types, plotting, spiking_modes):
-    ''' Average pre- and post- spike intervals to obtain static map; See also the "max" version of this function'''
+def Compute_STM(img_rate, window, n_procs, main_dir, file_dir, file_name, n_pixels, unit, channel, n_spikes, ptp, stm_types, spiking_modes):
+
+    ''' Compute STM using pre- and post- spike intervals to obtain static map; See also the "max" version of this function'''
     
-    print "Computing static maps"
+    print "Computing STMs"
     
     plot_strings=[]
     stm_filenames=[]
@@ -1449,14 +1452,24 @@ def Compute_static_maps_max(img_rate, window, n_procs, main_dir, file_dir, file_
             plot_strings.extend(spiking_modes)    #Need these new modes for the revision analysis
             
             for spiking_mode in spiking_modes:
-                print file_dir + file_name + '/img_avg_' + file_name+ '_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'_modes_*'+spiking_mode+'.npy'
-                stm_filenames.append(glob.glob(file_dir + file_name + '/img_avg_' + file_name+ '_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'_modes_*'+spiking_mode+'.npy')[0])
+                temp_name = glob.glob(file_dir + file_name + '/img_avg_' + file_name+ '_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'_modes_*'+spiking_mode+'.npy')
+    
+                if len(temp_name)!=1:
+                    print "...missing motif file (or too many files). Must run 'compute_stm_motif' flag to generate sta motif first..."
+                    return
+                else: 
+                    stm_filenames.append(temp_name[0])
         else:
             plot_strings.extend(mode_)
-            stm_filenames.append(glob.glob(file_dir + file_name + '/img_avg_' + file_name+ '_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'_all_*.npy')[0])
+            temp_name = glob.glob(file_dir + file_name + '/img_avg_' + file_name+ '_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'_all_*.npy')
+            if len(temp_name)!=1:
+                print "...missing motif file (or too many files). Must run 'compute_stm_motif' flag to generate sta motif first..."
+                return
+            else: 
+                stm_filenames.append(temp_name[0])
         
     for stm_filename in stm_filenames:   #Loop over spiking modes
-
+        
         if os.path.exists(stm_filename)==False: 
             print "... cell STM not computed...exiting..."
             return 
@@ -1473,59 +1486,40 @@ def Compute_static_maps_max(img_rate, window, n_procs, main_dir, file_dir, file_
         for i in range(len(generic_coords)):
             generic_mask_indexes[generic_coords[i][0]][generic_coords[i][1]] = True
 
-        #Compute and Save Maxmaps
+        #Compute Maxmaps    (can also compute amin maps)
         temp_array = []
-        for i in range(-int(img_rate), int(img_rate),1):
+        for i in range(-int(img_rate), int(img_rate),1):    #Load -1sec ... + 1sec data and look for max value for each pixel
             temp = np.ma.array(images_areas[int(window*img_rate)+i], mask=generic_mask_indexes, fill_value = 0., hard_mask = True)
             temp_array.append(temp)
 
         temp_array = np.float32(temp_array)
-        images_out2 = np.amax(temp_array,axis=0)
+        images_out2 = np.amax(temp_array,axis=0) #Search for max-pixel
         images_out2 = np.ma.array(images_out2, mask=generic_mask_indexes, fill_value = 0)
         images_out2 = np.ma.filled(images_out2, 0.0)
         images_out2 = np.nan_to_num(images_out2)
 
-        np.save(stm_filename[:-4]+"_maxmaps", images_out2)
+        #Display max pixel maps
+        midline_mask = 3        #Number of pixels to mask at the midline
 
-        #SAVE MIN MAPS ALSO
-        if True:
-            temp_array = []
-            for i in range(-int(img_rate), int(img_rate),1):
-                temp = np.ma.array(images_areas[int(window*img_rate)+i], mask=generic_mask_indexes, fill_value = 0., hard_mask = True)
-                temp_array.append(temp)
+        fig, ax = plt.subplots()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
 
-            temp_array = np.float32(temp_array)
-            images_out2 = np.amin(temp_array,axis=0)
-            images_out2 = np.ma.array(images_out2, mask=generic_mask_indexes, fill_value = 0.)
-            
-            images_out2 = np.ma.filled(images_out2, np.min(images_out2))
-            
-            np.save(stm_filename[:-4]+"_minmaps", images_out2)
+        image_loaded = images_out2 #np.load(stm_filename[:-4]+"_maxmaps.npy")
+        image_loaded = mask_data_single_frame(image_loaded, main_dir, midline_mask)
 
-        if plotting: 
-            
-            #Display max pixel maps
-            midline_mask = 3        #Number of pixels to mask at the midline
+        #Process image loaded
+        v_max = np.nanmax(np.abs(image_loaded)); v_min = -v_max
 
-            fig, ax = plt.subplots()
-            ax.get_xaxis().set_visible(False)
-            ax.get_yaxis().set_visible(False)
+        im = plt.imshow(image_loaded, vmin=v_min, vmax=v_max)
 
-            image_loaded = np.load(stm_filename[:-4]+"_maxmaps.npy")
-            image_loaded = mask_data_single_frame(image_loaded, main_dir, midline_mask)
+        plt.title("STM:    " + stm_filename, fontsize=20)
 
-            #Process image loaded
-            v_max = np.nanmax(np.abs(image_loaded)); v_min = -v_max
-            print "...v_max: ", v_max
-            im = plt.imshow(image_loaded, vmin=v_min, vmax=v_max)
+        cbar = fig.colorbar(im, ticks = [v_min, 0, v_max], ax=ax, shrink=.5, pad=.1, aspect=5)
+        cbar.ax.set_yticklabels([str(round(v_min*100,1))+"%", '0'+"%", str(round(v_max*100,1))+"%"])  # vertically oriented colorbar
+        cbar.ax.tick_params(labelsize=20) 
 
-            plt.title("STM:    " + stm_filename, fontsize=20)
-
-            cbar = fig.colorbar(im, ticks = [v_min, 0, v_max], ax=ax, shrink=.5, pad=.1, aspect=5)
-            cbar.ax.set_yticklabels([str(round(v_min*100,1))+"%", '0'+"%", str(round(v_max*100,1))+"%"])  # vertically oriented colorbar
-            cbar.ax.tick_params(labelsize=20) 
-
-            plt.show()
+        plt.show()
     
 def Load_max_maps(ptps, file_dir, file_name):
 
@@ -1610,18 +1604,20 @@ def Mp_min((temp_array2)):
 
     return temp_array2
 
-def Zero_images((images_areas)):
-    global coords_temp
-    
-    for i in range(len(images_areas)):
-        print "Processing time: ", i
-        for j in range(len(coords_temp)):
-            print "Processing coordinate: ", j
-            images_areas[i][min(255,int(coords_temp[j][0]))][min(255,int(coords_temp[j][1]))]=0
-            
-    return images_areas
 
-def Search_max_min(unit, channel, spikes, file_dir, file_name, img_rate, window, n_procs, area_names, depth, sides, stm_types, spiking_modes):
+def Compute_STMTD(unit, channel, spikes, file_dir, file_name, img_rate, window, n_procs, area_names, depth, sides, stm_types, spiking_modes):
+
+    ''' This routine loads specific ROIs of interest, identifies the highest and lowest active pixel in each ROI during the motif time (e.g. 6sec)
+        and then saves the activity at that pixel for the duration of the motif.
+        - each ROI STMTD is computed for both sides of the brain and for both the max_value pixel and min_value pixel.
+        - data is saved into a readable .txt file with # spikes at the top, STMTD names, STMTD traces, and the location in pixels of each of the STMTDs.
+    
+        STMTDs are computed in regions of interest (ROIs) that are defined for each cortical and subcortical recording and saved in the /roi/ directory.
+        - each ROI is defined as 256 x 256 single frame with the ROI coordinates set to 0 and the non-ROI coordinates set to 1.
+        - each ROI has a contour defined which just outlines the edges of the ROI and is saved as an .npy file with several coordinates in it. These contours
+          are used in the animations to indicate where each ROI was approximately computed. The code should run without these 
+    
+    '''
 
     global coords_temp
 
@@ -1630,19 +1626,23 @@ def Search_max_min(unit, channel, spikes, file_dir, file_name, img_rate, window,
     stm_filenames=[]
     for mode_ in stm_types:
         if mode_=="modes":
-            plot_strings.extend(spiking_modes)    #Need these new modes for the revision analysis
+            plot_strings.append(spiking_modes)    #Need these new modes for the revision analysis
             for spiking_mode in spiking_modes:
                 stm_filenames.append(glob.glob(file_dir + file_name + '/img_avg_' + file_name+ '_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'_modes_*'+spiking_mode+'.npy')[0])
         else:
-            plot_strings.extend(mode_)
+            plot_strings.append(mode_)
             stm_filenames.append(glob.glob(file_dir + file_name + '/img_avg_' + file_name+ '_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'_all_*.npy')[0])
                     
-                        
+    
     for plot_string, stm_filename in zip(plot_strings, stm_filenames):
     
         images_processed = np.load(stm_filename)
         n_pixels = images_processed.shape[1]
+
+        out_file = file_dir + file_name + '/time_course_data_' + file_name+'_'+plot_string+ '_'+str(window)+'sec_window_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'.txt'
         
+        if os.path.exists(out_file): continue
+
         Max_plot = []
         Min_plot = []
         Max_index = []
@@ -1704,9 +1704,6 @@ def Search_max_min(unit, channel, spikes, file_dir, file_name, img_rate, window,
                 max_index = np.unravel_index(np.nanargmax(temp_max_array), temp_max_array.shape)
                 max_pixel_value = temp_array[int(window*img_rate)-int(img_rate)+max_index[0]][max_index[1]][max_index[2]]
 
-                #temp1_array = np.ma.array(np.zeros((img_rate*2,256,256)), mask=True)
-                #for k in range(len(temp_max_array)):
-                    #temp1_array[k] = np.ma.array(temp_min_array[k], mask=area_mask) #np.ma.array(temp_max_array)
                 temp_min_array = temp_array2
                 min_index = np.unravel_index(np.nanargmin(temp_min_array), temp_min_array.shape)
                 min_pixel_value = temp_array[int(window*img_rate)-int(img_rate)+min_index[0]][min_index[1]][min_index[2]]
@@ -1730,34 +1727,26 @@ def Search_max_min(unit, channel, spikes, file_dir, file_name, img_rate, window,
                 Min_pixel_value.append(min_pixel_value)
                 Images_areas.append(temp_array)
                 
-                counter+=1
+                counter+=1  #Keep track of each STMTD in a different line to be saved below
 
 
-        #Make save array; 
+        #Make save array and save number of spikes
         temp_array = []
         temp_array.append([len(spikes)])  #Save # spikes within imaging period
         
-        #Add all time courses to 
-        print "...Max_plot: ", Max_plot
-        print Max_plot[0]
+        #Save each time course label:
+        for area in area_names:
+            for side in sides: 
+                for maxmin in ['max_value', 'min_value']:
+                    temp_array.append([area+'_'+side+"_"+maxmin])           
+                    
+        #Add all time courses to the file in same order as above.
         for i in range(len(Max_plot)):
             max_plot=np.array(Max_plot[i])
-            min_plot=np.array(Min_plot[i])
-
-            temp_array.append(min_plot)
             temp_array.append(max_plot)
 
-
-        #Add max_index and min_index information to the end of the time_course_data*.txt file
-        for i in range(len(Max_index)):
-            temp_array.append(Max_index[i])
-            temp_array.append(Min_index[i])
-
-
-        #Save time_course_data
-        with open(file_dir + file_name + '/time_course_data_' + file_name+'_'+plot_string+ '_'+str(window)+'sec_window_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+"_"+area_names[0], "w") as f:
-            writer = csv.writer(f)
-            writer.writerows(temp_array)
+            min_plot=np.array(Min_plot[i])
+            temp_array.append(min_plot)
             
             
         #Add max_index and min_index information to the end of the time_course_data*.txt file
@@ -1767,12 +1756,13 @@ def Search_max_min(unit, channel, spikes, file_dir, file_name, img_rate, window,
 
 
         #Save time_course_data
-        with open(file_dir + file_name + '/time_course_data_' + file_name+'_'+plot_string+ '_'+str(window)+'sec_window_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+"_"+area_names[0], "w") as f:
+        with open(out_file, "w") as f:
             writer = csv.writer(f)
             writer.writerows(temp_array)
         
+        np.save(out_file[:-4]+"_images_areas", Images_areas)
 
-    return Max_plot, Min_plot, Max_pixel_value, Min_pixel_value, Max_index, Min_index, area_names, Images_areas
+    #return Max_plot, Min_plot, Max_pixel_value, Min_pixel_value, Max_index, Min_index, area_names, Images_areas
 
 def Average_roi(images_areas, img_rate, window, n_procs, area_names, sides):
     
@@ -1799,68 +1789,111 @@ def Average_roi(images_areas, img_rate, window, n_procs, area_names, sides):
     
 
 
-def Save_time_course(unit, channel, spikes, Max_plot, Min_plot, Max_index, Min_index, window, len_frame, file_dir, file_name, area_names, sides, stm_types):
+def View_STMTD(unit, channel, spikes, window, len_frame, file_dir, file_name, area_names, sides, stm_types, spiking_modes):
+               
+    ''' Loads and displays STMTDs already computed    
+    '''
     
+    colours = ['blue', 'red','green', 'magenta', 'cyan', 'orange', 'brown', 'pink', 'yellow', 'grey']
+    labelsize = 30
+
+    #Convert firing modes to a list of strings
+    plot_strings=[]
+    for mode_ in stm_types:
+        if mode_=="modes":
+            plot_strings.extend(spiking_modes)      #spiking modes are 'first', 'last', 'burst', 'tonic'
+        else:
+            plot_strings.extend([mode_])            #other spiking modes are 'all'; Others can be added
     
-    temp_array = []
-    temp_array.append([len(spikes)])  #Save # spikes within imaging period
-    temp_array2 = []
-    for area in area_names:
-        for side in sides:
-            temp_array2.append(area+"_"+side)   #Save names of areas recorded
-    
-    for i in range(len(Max_plot)):
-        ax = plt.subplot(8,2,i+1)
-        max_plot=np.array(Max_plot[i])
-        min_plot=np.array(Min_plot[i])
 
-        temp_array.append(min_plot)
-        temp_array.append(max_plot)
-
-        xx = np.arange(-window, window, len_frame)
-        xx = xx[0: len(max_plot)]
-
-        ax.plot(xx, max_plot, color='black', linewidth=2)
-        ax.plot(xx, min_plot, color='blue', linewidth=2)
-        ax.plot([-3,3],[0,0], color='black')
-        ax.plot([0,0],[min(min_plot),max(max_plot)], color='black')
-        ax.set_ylim(-.04, .041)
-        ax.tick_params(axis='both', which='major', labelsize=8)
-        ax.yaxis.set_ticks(np.arange(-0.04,0.041,0.04))
+    for plot_string in plot_strings:
+        in_file = file_dir + file_name + '/time_course_data_' + file_name+'_'+plot_string+ '_'+str(window)+'sec_window_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'.txt'
+        #Save time_course_data
+        with open(in_file, "r") as f:
+            rows = list(csv.reader(f))
+            n_spikes = rows[0]
+            del rows[0]
+            
+            #Load time course labels
+            roi_names=[]; ctr=0
+            for area in area_names:
+                for side in sides: 
+                    for maxmin in ['max_value', 'min_value']:
+                        roi_names.append(rows[ctr])
+                        ctr+=1
+            print roi_names
+            
+            #Load time course labels
+            roi_stmtds=[]
+            for area in area_names:
+                for side in sides: 
+                    for maxmin in ['max_value', 'min_value']:
+                        roi_stmtds.append(rows[ctr])
+                        ctr+=1
+            print roi_stmtds[0]
+            
         
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)
-        if i==0: 
-            plt.title("Left")
-            ax.get_yaxis().set_visible(True)
-            plt.ylabel(area_names[int(i/2)], fontsize=8)
-        elif (i%2)==0 and i<14:
-            ax.get_yaxis().set_visible(True)
-            plt.ylabel(area_names[int(i/2)], fontsize=8)
-        elif i==1:
-            #ax.get_xaxis().set_visible(True)
-            plt.title("Right")
-        elif i==13:
-            ax.get_xaxis().set_visible(True)
+        #Plot left side STMTDs
+        ax = plt.subplot(1,2,1)
+        for i in range(len(area_names)):
+            print "...plotting left side max value STMTDs..."
+            
+            xx = np.linspace(-window, window, len(roi_stmtds[0]))
+            plt.plot(xx, np.float32(roi_stmtds[i*4])*100., color=colours[i], linewidth=3, alpha=0.8)
+            
+
+        ax.plot([-3,3],[0,0], color='black')
+        ax.plot([0,0],[-5.0,5.0], color='black')
+        ax.set_ylim(-5, 5)
+        ax.tick_params(axis='both', which='major', labelsize=labelsize)
+        ax.yaxis.set_ticks(np.arange(-5,5,1))
+        
+        plt.title("Left", fontsize = labelsize)
+        ax.get_yaxis().set_visible(True)
+        #plt.ylabel(area_names[int(i/2)], fontsize=labelsize)
+        plt.ylabel("DF/F %", fontsize = labelsize)
+        plt.xlabel("Time (sec)", fontsize = labelsize)
+
+        #Plot Legend
+        legend_array = []
+        labels = []
+        for ctr, area_name in enumerate(area_names): 
+            legend_array.append(mpatches.Patch(facecolor = colours[ctr], edgecolor="black"))
+            labels.append(area_name)
+
+        ax.legend(legend_array, labels, fontsize=12, loc=0)
+
+        #Plot right side STMTDs
+        ax = plt.subplot(1,2,2)
+        for i in range(len(area_names)):
+            print "...plotting right side max value STMTDs..."
+            
+            xx = np.linspace(-window, window, len(roi_stmtds[0]))
+            plt.plot(xx, np.float32(roi_stmtds[i*4+2])*100., color=colours[i], linewidth=3, alpha=0.8)
+            
+
+        ax.plot([-3,3],[0,0], color='black')
+        ax.plot([0,0],[-5.0,5.0], color='black')
+        ax.set_ylim(-5, 5)
+        ax.tick_params(axis='both', which='major', labelsize=labelsize)
+        ax.yaxis.set_ticks(np.arange(-5,5,1))
+        
+        plt.title("Right", fontsize = labelsize)
+        ax.get_yaxis().set_visible(True)
+        plt.ylabel("DF/F %", fontsize = labelsize)
+        plt.xlabel("Time (sec)", fontsize = labelsize)
 
 
-    plt.suptitle(file_name + " Unit: " +str(unit).zfill(2) + " Channel: " + str(channel).zfill(2)+
-    " No. of spikes: "+ str(len(spikes)))
+        plt.suptitle(file_name + " Unit: " + str(unit).zfill(2) + " Channel: " + str(channel).zfill(2) + " No. of spikes: " + str(len(spikes)), fontsize=labelsize)
 
-    #npy_file_name = file_dir + file_name + '/img_avg_' + file_name+ '_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'_'+plot_string+'_'+str(window)+'sec_window'
+        #npy_file_name = file_dir + file_name + '/img_avg_' + file_name+ '_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'_'+plot_string+'_'+str(window)+'sec_window'
 
-    plt.savefig(file_dir + file_name + '/time_course_plot_' + file_name+'_'+plot_string+ '_'+str(window)+'sec_window_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'.png', fontsize = 20)
-    plt.close()
+        plt.show()
+        
+        #plt.savefig(file_dir + file_name + '/time_course_plot_' + file_name+'_'+plot_string+ '_'+str(window)+'sec_window_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'.png', fontsize = 20)
+        
+        #plt.close()
 
-    #Add max_index and min_index information to the end of the time_course_data*.txt file
-    for i in range(len(Max_index)):
-        temp_array.append(Max_index[i])
-        temp_array.append(Min_index[i])
-
-    #Save time_course_data
-    with open(file_dir + file_name + '/time_course_data_' + file_name+'_'+plot_string+ '_'+str(window)+'sec_window_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+"_"+area_names[0], "w") as f:
-        writer = csv.writer(f)
-        writer.writerows(temp_array)
 
 
 def Plot_matrix_maps(average_areas, file_dir, file_name, area_names, img_rate, unit, spikes, channel, ptp):
@@ -1947,46 +1980,92 @@ def Plot_matrix_maps(average_areas, file_dir, file_name, area_names, img_rate, u
     
 
 
-def Animate_images(unit, channel, window, img_rate, Images_areas, file_dir, file_name, n_pixels, spikes, plot_string, n_procs, generic_mask_indexes, 
-    Max_plot, Min_plot, Max_pixel_value, Min_pixel_value, Max_index, Min_index, area_names, sides, depth):
+def Animate_images(unit, channel, window, img_rate, main_dir, file_dir, file_name, n_pixels, spikes, plot_string, n_procs, area_names, sides, depth, stm_types, spiking_modes):
     
-    print "Generating Animation. No. of Frames: ", len(Images_areas[0])
-    
-    colors=['blue','red', 'green','violet','lightseagreen','lightsalmon','indianred','lightsalmon','pink','darkolivegreen','blue','red', 'green','violet','lightseagreen','lightsalmon','indianred','lightsalmon','pink','darkolivegreen']
+    #(unit, channel, window, img_rate, Images_areas, file_dir, file_name, n_pixels, spikes, plot_string, n_procs, 
+    #Max_plot
 
-    #***************** Process plots *****************
+    colors = ['blue', 'red','green', 'magenta', 'cyan', 'orange', 'brown', 'pink', 'yellow', 'grey']
+
+    #print "Generating Animation. No. of Frames: ", len(Images_areas[0])
+    
+    #Load General mask (removes background)
+    generic_mask_file = []
+    generic_mask_file = main_dir + 'genericmask.txt'
+    if (os.path.exists(generic_mask_file)==True):
+        generic_coords = np.int16(np.loadtxt(generic_mask_file))
+    
+    print "... n_pixels: ", n_pixels
+    generic_mask_indexes=np.zeros((n_pixels,n_pixels))
+    for i in range(len(generic_coords)):
+        generic_mask_indexes[generic_coords[i][0]][generic_coords[i][1]] = True
+        
+
+    #Convert firing modes to a list of strings
+    plot_strings=[]
+    for mode_ in stm_types:
+        if mode_=="modes":
+            plot_strings.extend(spiking_modes)      #spiking modes are 'first', 'last', 'burst', 'tonic'
+        else:
+            plot_strings.extend([mode_])            #other spiking modes are 'all'; Others can be added
+        
+        
+    #Load Max_plot and other values.
+    for plot_string in plot_strings:
+        in_file = file_dir + file_name + '/time_course_data_' + file_name+'_'+plot_string+ '_'+str(window)+'sec_window_unit'+str(unit).zfill(2)+'_ch'+str(channel).zfill(2)+'.txt'
+        #Save time_course_data
+        with open(in_file, "r") as f:
+            rows = list(csv.reader(f))
+            n_spikes = rows[0]
+            del rows[0]
+
+            #Load time course labels
+            roi_names=[]; ctr=0
+            for area in area_names:
+                for side in sides: 
+                    for maxmin in ['max_value', 'min_value']:
+                        roi_names.append(rows[ctr])
+                        ctr+=1
+
+            #Load time course labels
+            Max_plot=[]
+            for area in area_names:
+                for side in sides: 
+                    for maxmin in ['max_value', 'min_value']:
+                        Max_plot.append(rows[ctr])
+                        ctr+=1
+
+    Max_plot_left = np.float32(Max_plot)[::4] *100.  #Convert data to percent
+    Max_plot_right = np.float32(Max_plot)[2::4] *100.  #Convert data to percent
+
+    #Process plots
     plot_frames = []
     x = np.arange(-window, window, 1./img_rate)
-    x = x[:len(Max_plot[0])]
-    Max_plot = np.array(Max_plot)
+    x = x[:len(Max_plot_left[0])]
+    #Max_plot = np.array(Max_plot)
 
-    print "Number of area recordings: ", len(Max_plot)
+    print "Number of ROIs: ", len(Max_plot_left)
     ranges = np.arange(0,len(x),1)
 
-    #Divide data into nchunks for some reason works faster; TO DO: PARALLELIZE
+
     n_chunks = 8
     range_chunks = np.array_split(ranges,n_chunks)
     
     plt.close()
     
-    #*********** PLOT CURVE GRAPHS ************************
-    if True: #PLOT ALL CURVES FOR ALL AREAS
+    #PLOT CURVE GRAPHS
+    if False: #PLOT ALL CURVES FOR ALL AREAS
         print "... processing plot frames..."
-        for chunk in range(n_chunks):
+        for time_step in range(len(Max_plot_left[0])):
             fig = plt.figure()
-            fig.add_subplot(111)
+            fig.add_subplot(211)
             fig.set_size_inches(5, 20)
-            #fig.canvas.draw()
             
-            #FIXED LINES FOR EACH PLOT
-            for i in range(len(Max_plot)+2): #need to make figs at top of graph also                
-                plt.plot(x, [int(i/2)*0.10]*len(x), color='black', linewidth = 2)
-                plt.plot(x, [int(i/2)*0.10+0.03]*len(x), 'r--', color=colors[int(i/2)], alpha=0.5)
-                plt.plot(x, [int(i/2)*0.10-0.03]*len(x), 'r--', color=colors[int(i/2)], alpha=0.5)
-                plt.axhspan(int(i/2)*0.10+0.03, int(i/2)*0.10-0.03, color='black', alpha=0.2, lw=0)   
             plt.xlabel("Time (s)")
-            plt.ylim(-0.06, 0.90)
-            plt.plot([-window,window],[-100,100], color='black')
+
+            plt.plot([-window,window],[0,0], color='black')
+            plt.plot([0,0],[-5,5], color='black')
+            plt.title("Left Hemisphere", fontsize=20)
 
             plt.tick_params(
             axis='y',          # changes apply to the x-axis
@@ -1996,17 +2075,35 @@ def Animate_images(unit, channel, window, img_rate, Images_areas, file_dir, file
             labelbottom='off') # 
 
             #DRAW CURVES OVER TIME
-            for k in range_chunks[chunk]:
-                for i in range(len(Max_plot)):
+            for i in range(len(Max_plot_left)):
+                plt.plot(x[:time_step], Max_plot_left[i][:time_step], color=colors[i], linewidth=2) #Plot individual overlayed left/rigth curves
+            
+            plt.ylim(-5,5)
 
-                    plt.plot(x[:k], Max_plot[i][:k]+(int(i/2)+1)*0.10, color=colors[i], linewidth=2) #Plot individual overlayed left/rigth curves
-                    
-                fig.savefig(file_dir + file_name+'/figs_'+str(k).zfill(3)+'.jpg', dpi=40)
-                #fig.canvas.draw()
-                #fig.canvas.flush_events()
-                #data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-                #data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-                #scipy.misc.toimage(data).save(file_dir + file_name+'/figs_'+str(k).zfill(3)+'.jpg')
+            fig.add_subplot(212)
+            fig.set_size_inches(5, 20)
+
+            plt.title("Right Hemisphere", fontsize=20)
+            plt.xlabel("Time (s)")
+            plt.plot([-window,window],[0,0], color='black')
+            plt.plot([0,0],[-5,5], color='black')
+
+            plt.tick_params(
+            axis='y',          # changes apply to the x-axis
+            which='both',      # both major and minor ticks are affected
+            bottom='off',      # ticks along the bottom edge are off
+            top='off',         # ticks along the top edge are off
+            labelbottom='off') # 
+
+            #DRAW CURVES OVER TIME
+            for i in range(len(Max_plot_right)):
+                plt.plot(x[:time_step], Max_plot_right[i][:time_step], color=colors[i], linewidth=2) #Plot individual overlayed left/rigth curves
+
+            plt.ylim(-5,5)
+                
+            #Save each figure to disk; make movie below
+            fig.savefig(file_dir + file_name+'/figs_'+str(time_step).zfill(3)+'.jpg', dpi=40)
+
             plt.close(fig)
 
         #Make vid1 containing time course curves
@@ -2016,24 +2113,32 @@ def Animate_images(unit, channel, window, img_rate, Images_areas, file_dir, file
 
 
     #***************** Process images ****************
-    Images_areas = np.array(Images_areas)
+    
+    Images_areas = np.load(in_file[:-4]+"_images_areas.npy")
+
+    Images_areas = Images_areas*100.    #Convert to % scale
     Images_areas = np.swapaxes(Images_areas, 0, 1)
+    
     
     #Generate borders around recorded areas and mask them out in order for color to work properly
     img=Image.new("RGBA", (n_pixels,n_pixels),(0,0,0))
     if True:
-        if True:
-            draw = ImageDraw.Draw(img)
-            counter=0
-            for area in area_names:
-                for side in sides:
-                    area_file = file_dir+ depth+'_' + area+'_'+side+'_contour'
-                    if (os.path.exists(area_file+'.npy')==True):
-                        area_contour = np.load(area_file+'.npy')     #Load coordinates; 2D vectors stacked; Mask out everything else
+        draw = ImageDraw.Draw(img)
+        counter=0
+        for area in area_names:
+            for side in sides:
+                area_file = file_dir+ 'roi/'+depth+'_' + area+'_'+side+"_contour"
+                print area_file
+                if (os.path.exists(area_file+'.npy')==True):
+                    area_contour = np.load(area_file+'.npy')     #Load coordinates; 2D vectors stacked; Mask out everything else
 
-                    for i in range(len(area_contour)-1):  #Skip last border which represents all cortex
-                        draw.line((area_contour[i][1],area_contour[i][0],area_contour[i+1][1],area_contour[i+1][0]), fill = colors[counter], width = 1)
-                counter+=1
+                for i in range(len(area_contour)-1):
+                    if area == 'retrosplenial':  print area_contour[i][1],area_contour[i][0],area_contour[i+1][1],area_contour[i+1][0]
+                    draw.line((area_contour[i][1],area_contour[i][0],area_contour[i+1][1],area_contour[i+1][0]), fill = colors[counter], width = 1)
+                    #draw.line((area_contour[i][1],area_contour[i][0],area_contour[i+1][1],area_contour[i+1][0]), fill = 'white', width = 1)
+            
+            counter+=1
+            
         borders_=asarray(img)
 
         if True:
@@ -2043,20 +2148,6 @@ def Animate_images(unit, channel, window, img_rate, Images_areas, file_dir, file
                 for j in range(n_pixels):
                     if np.sum(borders_[i][j])>255:
                         borders_mask[i][j]=True
-
-        #if False:
-            #draw = ImageDraw.Draw(img)
-            #for area in area_names:
-                #for side in sides:
-                    #area_file = file_dir+ depth+'_' + area+'_'+side
-                    #if (os.path.exists(area_file+'.npy')==True):
-                        #area_mask = np.load(area_file+'.npy')     #Load coordinates; 2D vectors stacked; Mask out everything else
-
-                    ##for i in range(len(area_mask)):  #Skip last border which represents all cortex
-                    ##    for j in range(len(area_mask[[0]])):
-                    ##        if area_mask[i][j]==True:
-                    ##            print i,j
-                    ##            draw.point((i,j), fill = 'white')
 
                 
     #Generate time index text and convert it to array for adding to frames
@@ -2086,14 +2177,18 @@ def Animate_images(unit, channel, window, img_rate, Images_areas, file_dir, file
     #Generate image frames as arrays and save to .pngs
     images_out = []
     my_cmap = matplotlib.cm.get_cmap('jet')
-    v_min = min(Min_pixel_value)
-    v_max = max(Max_pixel_value)
+    
+    #REDO THESE*******************************************************************
+    v_min = np.amin(Max_plot_left)
+    v_max = np.amax(Max_plot_left)
+    print v_min, v_max
 
     print "... processing images frames..."
     for i in range(len(Images_areas)):
         temp_img = np.float32(Images_areas[i][0])
         temp_img = ndimage.gaussian_filter(temp_img, sigma=.5)
         temp_img = (temp_img - v_min)/(v_max-v_min)
+        
         masked_data = np.ma.array(temp_img, mask=generic_mask_indexes)
         
         if True: masked_data = np.ma.array(masked_data, mask=borders_mask)

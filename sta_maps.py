@@ -1,25 +1,8 @@
+#Python Code for computing spike-triggered motifs and cortical maps from wide-field calcium recordings
+#Author: Catalin Mitelut
+#License: MIT Copyright 2017 (C. Mitelut)
+
 import numpy as np
-import time, math
-import os.path
-import multiprocessing as mp
-import re
-import sys
-import struct, array, csv
-import scipy.optimize 
-
-from matplotlib import animation
-import matplotlib.mlab as mlab
-
-from scipy import stats
-from scipy import signal
-from pylab import *
-
-from scipy.interpolate import interp1d
-from scipy.optimize import curve_fit
-from scipy.interpolate import UnivariateSpline
-
-from PIL import Image
-
 from sta_utils import *
 
 #***********************************************

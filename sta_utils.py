@@ -1,26 +1,19 @@
 import subprocess
-from scipy import stats, signal
-from scipy import interpolate
+
 import numpy as np
-import time, math
-import sys
+import math
 import os.path
 import multiprocessing as mp
 from matplotlib import animation
 from matplotlib.path import Path
-import glob #Wildcard searching in dir listing
+import glob 
 import skimage
 from skimage import data
 from skimage.transform import rotate
             
 from pylab import *
-from scipy.interpolate import interp1d
-import struct, array, csv
-import scipy.optimize 
-from scipy.optimize import curve_fit
-from scipy.interpolate import UnivariateSpline
+import csv
 
-import matplotlib.mlab as mlab
 import matplotlib.patches as mpatches
 
 from scipy import ndimage
@@ -29,8 +22,6 @@ import PIL
 from PIL import ImageFont
 from PIL import Image
 from PIL import ImageDraw
-
-from libtfr import *
 
 
 def Load_images(file_dir, file_name):
@@ -150,30 +141,6 @@ def Rotate_images(images_raw, file_dir, file_name, overwrite_shifted):
     n_pixels = len(shift_img[0])
 
     return shift_img
-            
-
-def Reduce_images_128pixels(images_raw):
-    print images_raw.shape
-    
-    from skimage.measure import block_reduce
-    reduced_frames = np.zeros((len(images_raw),128,128),dtype=np.float32)
-    print reduced_frames.shape
-    for i in range(len(images_raw)):
-        print "Block reducing frame: ", i
-        reduced_frames[i] = block_reduce(images_raw[i], block_size=(2,2), func=np.mean)
-
-    return reduced_frames
-
-def Luminance_contrast(frame_in, frame_out):
-    for i in range(0,len(frame_in),1):
-        for j in range(0,len(frame_in[0]),1):
-            frame_out[i,j] = frame_in[i][j]/np.mean(frame_in)   #Definition of luminance-contrast from Ringach 2002
-    return frame_out
-    
-def Baseline_regression(images_raw):        
-    print "Removing baseline over all data"
-    baseline = np.mean(images_temp, axis=0)
-    images_temp = (images_temp - baseline)/baseline
 
 
 def Load_images_start_end(file_dir, file_name, images_raw):
@@ -2225,282 +2192,6 @@ def Animate_images(unit, channel, window, img_rate, main_dir, file_dir, file_nam
     print ""
     print ""
     #quit()
-
-
-def Multitaper_specgram_allfreqs(time_series):
-
-    s = time_series
-    
-    #print "Length of recording: ", len(s)
-    
-    #******************************************************
-           
-    #Multi taper function parameters
-    nfft = 5000
-    shift = 10
-    Np = 1000
-    k = 6
-    tm = 6.0
-    
-    #Computing multi taper trf_specgram
-    spec = tfr_spec(s, nfft, shift, Np, k, tm)
-
-    #Martin changes
-    zis = np.where(spec == 0.0) # row and column indices where P has zero power
-    if len(zis[0]) > 0: # at least one hit
-        spec[zis] = np.finfo(np.float64).max # temporarily replace zeros with max float
-        minnzval = spec.min() # get minimum nonzero value
-        spec[zis] = minnzval # replace with min nonzero values
-    spec = 10. * np.log10(spec) # convert power to dB wrt 1 mV^2?
-
-    p0=-40
-    p1=None
-    if p0 != None:
-        spec[spec < p0] = p0
-    if p1 != None:
-        spec[spec > p1] = p1
-
-    return spec, nfft
-    
-def Compute_lpf_static_maps(file_dir, file_name, images_raw, img_start, img_end, len_frame, img_rate, n_pixels, n_frames, img_times):
-
-    #Load Generic Mask
-    coords_generic=[]
-    if (os.path.exists(file_dir + 'genericmask.txt')==True):
-        print "Loading existing generic mask"
-        generic_mask_file = file_dir + 'genericmask.txt'
-        coords_generic = np.loadtxt(generic_mask_file)
-
-    #Load Artifact Mask
-    coords_artifact=[]
-    if (os.path.exists(file_dir + 'artifactmask.txt')==True):
-        print "Loading existing artifact mask"
-        artifact_mask_file = file_dir + 'artifactmask.txt'
-        coords_artifact = np.loadtxt(artifact_mask_file)
-
-    #Load Bregma Mask
-    coords_bregma=[]
-    if (os.path.exists(file_dir + 'bregmamask.txt')==True):
-        print "Loading existing bregma mask"
-        bregma_mask_file = file_dir + 'bregmamask.txt'
-        coords_bregma = np.loadtxt(bregma_mask_file)
-
-    #PROCESS IMAGE TIMES FIRST
-    #Test only on images in first X secs
-    time_length = 120    #No. of secs of analysis
-    temp0 = np.where(np.logical_and(img_times>=img_times[0], img_times<=img_times[0]+time_length))[0]
-    img_times = img_times[temp0]
-
-    print "No. images: ", len(img_times)
-    print "First and last img time: ", img_times[0], img_times[-1]
-    #print len(img_times)
-
-    #selected_images = np.array(images_raw[temp0[:-1]],dtype=np.float32) #Remove last image as it is not being use
-    selected_images = np.array(images_raw[temp0],dtype=np.float32) #Remove last image as it is not being use
-
-    #remove baseline for [Ca]; but not VSD?
-    if True:
-        print "Removing baseline over all data"
-        baseline = np.mean(selected_images, axis=0)
-        selected_images = (selected_images - baseline)/baseline
-    
-    #PROCESS ephys data;
-    sim_dir = file_dir
-    sorted_file = file_name
-    
-    low_pass = False
-    raw = True
-    mua_load = False
-    
-    if low_pass:
-        f = open(sim_dir + sorted_file+'/' + sorted_file + '_lp.tsf', "rb")
-        tsf = Tsf_file(f, sim_dir)  #Auto load tsf file attributes: n_electrodes, ec_traces, SampleFreqeuncy and others
-        tsf.sim_dir = sim_dir
-        tsf.tsf_name = sim_dir + sorted_file+'/' + sorted_file + '.tsf'
-        tsf.fname = sim_dir + sorted_file+'/' + sorted_file + '.tsf'
-        f.close()
-    
-    if raw:
-        f = open(sim_dir + sorted_file+'/' + sorted_file + '_raw.tsf', "rb")
-        tsf = Tsf_file(f, sim_dir)  #Auto load tsf file attributes: n_electrodes, ec_traces, SampleFreqeuncy and others
-        tsf.sim_dir = sim_dir
-        tsf.tsf_name = sim_dir + sorted_file+'/' + sorted_file + '.tsf'
-        tsf.fname = sim_dir + sorted_file+'/' + sorted_file + '.tsf'
-        f.close()
-    
-    if mua_load:
-        #Load Sorted data
-        work_dir = sim_dir + file_name + "/"
-        file_name = sorted_file + '_hp'
-        ptcs_flag = 0
-        Sort = Loadptcs(file_name, work_dir, ptcs_flag, save_timestamps=False)
-        Sort.name=file_name
-        Sort.filename=file_name
-        Sort.directory=work_dir
-       
-        
-    print "Sample freq: ", tsf.SampleFrequency
-    print "Loaded .tsf for xcorrelation"
-    
-    #Load only ephys data within imaging window.
-    #Find time indexes in ephys data that fall within imaging window - temp1
-
-    if True:  #If using ephys data
-        print "downsampling ephys to 1khz...", len(tsf.ec_traces[0])
-        ephys_times = np.arange(0,float(img_times[-1])*1E3,1.E3/float(tsf.SampleFrequency))*1.E-3
-        print "finding matching imaging frames for ephys times..."
-        temp1 = np.where(np.logical_and(ephys_times>=img_times[0], ephys_times<=img_times[-1]))[0]
-        print "Ephys time indexes: ", np.float32(temp1)/tsf.SampleFrequency
-
-        #computing split_array used to chunk the ephys data: used to obtain average LFP during single img frame; timesteps of original data
-        split_array = []
-        for i in range(0,len(img_times)-1,1):
-            split_array.append(int(len_frame*i*tsf.SampleFrequency))
-
-    bands = [[0.1, 4.0], [4.0, 8.0], [8.0, 12.0], [12.0, 25.0], [25.0, 100.0], [500.0, 5000.0]]
-    #bands = [[0.1,5000.]]
-    bands_names = ['Delta (0.1-4.0)', 'Theta (4.0-8.0)', 'Alpha (8.0-12.0)', 'Beta (12.0-25.0)', 'Gamma (25.0-150.0)', 'High (500-5000)']
-    #bands_names = ["all"]
-    bands_out = ['delta', 'theta', 'alpha', 'beta', 'gamma', 'high']
-    #bands_out = ['all']
-    
-    counter = 0
-    top_row = True
-    #electrodes = np.arange(0,16,1)
-    electrodes = np.arange(0,16,1)
-    #electrodes = [0,5,10,15]
-    
-    n_electrodes = len(electrodes)
-    
-    lfp_correlation_method = True
-    lfp_power_method = False    #Requires split array +1 and selected_images - 1... not clear why.
-    
-    for q in electrodes:
-        if lfp_correlation_method:
-            for b in range(len(bands)):
-                print "Channel: ", q, " band: ", bands_names[b]
-                
-                #Use LFP Correlation method: average lfp signal during each frame and mutiply by frame
-                ephys_data = tsf.ec_traces[q][temp1].copy() * 1.0       #Can look at only postivie or neative data
-                fs = 20000 
-                lowcut, highcut = bands[b]
-                ephys_data = butter_bandpass_filter(ephys_data, lowcut, highcut, fs, order = 2)
-
-                ephys_data = np.clip(ephys_data, 0, 1E10) #Look only at positive power ;
-                #ephys_data = np.clip(ephys_data, -1E10, 0) #Look only at negative power;
-                
-                #print splitting ephys_data into chunks triggered on imaging times: to get average value of LFP during single img frame
-                ephys_split = np.split(ephys_data, split_array) #
-                
-                ephys_split_mean = []
-                for i in range(len(ephys_split)):
-                    ephys_split_mean.append(np.mean(ephys_split[i]))
-
-                    
-                ##Visualize img frame-to-ephys matching: LFP data overlayed with averaged chunks triggered on image times
-                #if True:
-                    #width = []
-                    #for i in range(len(img_times)):
-                        #width.append(10)
-                    #plt.bar(img_times, width, .01, color='black', alpha=0.65)
-                    #plt.plot(ephys_times[temp1], ephys_data, color='blue')
-                    #print len(img_times), ephys_split_mean.shape
-                    #plt.bar(img_times, ephys_split_mean, .03, color='pink', alpha=0.45)
-                    #plt.show()
-                
-                #print "Computing mean of ephys_split data"
-                ephys_split_mean = np.clip(ephys_split_mean,0,1000000) #remove negative values;
-                ephys_split_mean = np.float32(ephys_split_mean)
-                ephys_split_mean_max = np.nanmax(ephys_split_mean)     #Normalize to largest LFP value (negative or positive)
-                ephys_split_mean = ephys_split_mean/ephys_split_mean_max    
-                #ephys_split_mean = np.clip(ephys_split_mean,0,1) #remove negative values;
-                ephys_split_mean = np.nan_to_num(ephys_split_mean)
-
-                #Compute lfp average triggered images
-                image_lfp = np.einsum('m,mdr->mdr',ephys_split_mean, selected_images)
-                image_lfp = np.mean(image_lfp, axis=0)
-
-                np.save(file_dir + file_name+'/'+file_name+'_lfpmap_band_'+bands_out[b]+'_channel_'+str(q).zfill(2), image_lfp)
-
-        if lfp_power_method:
-            ephys_data = tsf.ec_traces[q][temp1].copy()     #This selects only part of recording
-            fs = 20000 
-            
-
-            #ephys_temp = butter_bandpass_filter(ephys_data, lowcut, highcut, fs, order = 2)
-            print "Computing time-frequency reassignment specgram channel: ", q
-            
-            tfr_file = file_dir + file_name+'/'+file_name+'_tfr_channel_'+str(q).zfill(2)
-            if os.path.exists(tfr_file+'.npz'): 
-                data = np.load(tfr_file+'.npz')
-                mt_specgram = data['mt_specgram']
-                nfft = data['nfft']
-            else: 
-                mt_specgram, nfft = Multitaper_specgram_allfreqs(ephys_data)
-                np.savez(tfr_file, mt_specgram=mt_specgram, nfft=nfft)
-            
-            for b in range(len(bands)):
-                f0, f1 = bands[b]
-                lo = int(float(nfft)/1000. * f0)
-                hi = int(float(nfft)/1000. * f1)
-                mt_specgram_temp = mt_specgram[lo:hi][::-1] #Take frequency band slice only; also invert the data
-
-                #print f0, f1
-                #plt.imshow(mt_specgram_temp, extent = [0,f1, len(mt_specgram_temp),0], origin='upper', aspect='auto', interpolation='sinc')
-                #plt.show()
-            
-                spec_split = np.array(split_array)*len(mt_specgram_temp[0])/split_array[-1] #Normalize splitting array to length of spectrogram
-                #print spec_split
-                spec_split_mean = []
-                for ss in range(len(spec_split)-1):
-                    spec_split_mean.append(np.mean(mt_specgram_temp[:,spec_split[ss]:spec_split[ss+1]]))
-
-                #print "Computing mean of ephys_split data"
-                spec_split_mean = np.array(spec_split_mean)
-                spec_split_mean_max = np.max(np.abs(spec_split_mean))     #Normalize to largest LFP value (negative or positive); THIS CAN"T BE NEGATIVE!
-                spec_split_mean_min = np.min(np.abs(spec_split_mean))     #Normalize to largest LFP value (negative or positive); THIS CAN"T BE NEGATIVE!
-                spec_split_mean = (spec_split_mean-spec_split_mean_min)/(spec_split_mean_max-spec_split_mean_min)
-                #plt.plot(spec_split_mean)
-                #plt.show()
-                #quit()
-                #spec_split_mean = np.clip(spec_split_mean,0,1) #remove negative values; NOT REQUIRED
-
-                #Compute lfp average triggered images
-                print spec_split_mean.shape, selected_images.shape
-                image_lfp = np.einsum('m,mdr->mdr', spec_split_mean, selected_images)
-                image_lfp = np.mean(image_lfp, axis=0)
-
-                np.save(file_dir + file_name+'/'+file_name+'_powermap_band_'+bands_out[b]+'_channel_'+str(q).zfill(2), image_lfp)
-
-            #print "Plotting image_lfp"
-            ax = plt.subplot(n_electrodes, 7, counter+1)
-            ax.get_xaxis().set_visible(False)
-            ax.set_yticklabels([])
-            if top_row:
-                plt.title(bands_names[counter])
-
-            #Ablate generic map
-            min_pixel = np.min(image_lfp)
-            for j in range(len(coords_generic)):
-                image_lfp[min(n_pixels,int(coords_generic[j][0]))][min(n_pixels,int(coords_generic[j][1]))]=min_pixel
-            for j in range(len(coords_artifact)):
-                image_lfp[min(n_pixels,int(coords_artifact[j][0]))][min(n_pixels,int(coords_artifact[j][1]))]=min_pixel
-            for j in range(len(coords_bregma)):
-                for k in range(n_pixels):
-                    for l in range(7):
-                        image_lfp[k][min(n_pixels-1,int(coords_bregma[1])-3+l)]=min_pixel
-                        
-            plt.imshow(image_lfp, origin='lower')
-            if counter%7==0:
-                plt.ylabel("Ch: "+str(q))
-            plt.xlim(0,n_pixels-1)
-            plt.ylim(n_pixels-1, 0)
-            counter+=1
-
-
-        counter+=1
-        top_row=False
-    
 
 
 def animate_data(data):

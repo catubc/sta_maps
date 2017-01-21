@@ -30,4 +30,4 @@ Assistance with module installation and running can be provided by email: cat@al
 
 ###**Matlab Code**
 
-Alternative Matlab code with other examples is also available here [Matlab code and source data] (https://www.dropbox.com/home/nmpaper/Figure%201-source%20data%201).
+Alternative Matlab code with additional examples is also available here: [Matlab code and source data] (https://www.dropbox.com/home/nmpaper/Figure%201-source%20data%201).

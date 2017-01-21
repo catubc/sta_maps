@@ -20,7 +20,8 @@ The imaging data files (converted and aligned) should be downloaded and saved in
 ###**Instructions for Running Code**
 
 The code is a simplified version of our scripts. It should be run using python 2.7 using the command:
-python sta_maps.py
+
+`python main.py`
 
 There are several option flags in the sta_maps.py file which can be set to compute and display motifs, STMs and STMTDs. Additional, video animations can be generated using the "animate_images" flag.
 

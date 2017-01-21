@@ -23,9 +23,9 @@ The code is a simplified version of our scripts. It should be run using python 2
 
 `python main.py`
 
-There are several option flags in the sta_maps.py file which can be set to compute and display motifs, STMs and STMTDs. Additional, video animations can be generated using the "animate_images" flag.
+There are several option flags in the main.py file which can be set to compute and display: motifs, STMs and STMTDs. Additional, video animations can be generated using the "animate_images" flag.
 
-Assistance can be provided by email: cat@alumni.ubc.ca.
+Assistance with module installation and running can be provided by email: cat@alumni.ubc.ca.
 
 
 ###**Matlab Code**

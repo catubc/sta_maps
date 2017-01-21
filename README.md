@@ -18,7 +18,6 @@ The code was written to load Multi-Channel-Systems ephys files that align to ima
 The imaging data files (converted and aligned) should be downloaded and saved into the appropriate directories.
 
 
-
 ###**Instructions for Running Code**
 
 The code is a simplified version of our scripts. It should be run using python 2.7 using the command:

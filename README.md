@@ -15,7 +15,7 @@ There are several python module dependencies including: numpy, math, mutiplrocis
 
 The code was written to load Multi-Channel-Systems ephys files that align to imaging data. We provide examples of data recorded cortically and subcortically here: [source data on dropbox] (https://www.dropbox.com/sh/chet957crw41267/AADgke5NMnM__f4L4PDaK4QHa?dl=0).
 
-The ephys trigger file (.mcd) and the imaging data (.npy) files should be downloaded and saved into the appropriate directories.
+The imaging data files (converted and aligned) should be downloaded and saved into the appropriate directories.
 
 
 
@@ -29,6 +29,6 @@ There are several option flags in the sta_maps.py file which can be set to compu
 Assistance can be provided by email: cat@alumni.ubc.ca.
 
 
-###**Matlab Code***
+###**Matlab Code**
 
-Alternative Matlab code with some of the functions above is also available here [Matlab code and source data] (https://www.dropbox.com/home/nmpaper/Figure%201-source%20data%201).
+Alternative Matlab code with other examples is also available here [Matlab code and source data] (https://www.dropbox.com/home/nmpaper/Figure%201-source%20data%201).

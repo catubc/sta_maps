@@ -13,7 +13,7 @@ Processing requirements are at least 32GB of ram and preferably a multi-core pro
 
 There are several python module dependencies including: numpy, math, mutiplrociseing, scipy, PIL, subprocess and others. They are all standard packages that can be installed using pip or other common methods.
 
-The code was written to load Multi-Channel-Systems ephys files that align to imaging data. We provide examples of data recorded cortically and subcortically here: [source data on dropbox] (https://www.dropbox.com/sh/chet957crw41267/AADgke5NMnM){:target='_blank'}
+The code was written to load Multi-Channel-Systems ephys files that align to imaging data. We provide examples of data recorded cortically and subcortically here: [source data on dropbox] https://www.dropbox.com/sh/1iegmtuowd3yczz/AADFicFsDd6OE4BVGAhezbPqa?dl=0 {:target="_blank"}.
 
 The imaging data files (converted and aligned) should be downloaded and saved into the appropriate directories.
 
@@ -29,4 +29,4 @@ Assistance can be provided by email: cat@alumni.ubc.ca.
 
 ###**Matlab Code**
 
-Alternative Matlab code with other examples is also available here [Matlab code and source data] (https://www.dropbox.com/home/nmpaper/Figure%201-source%20data%201){:target="_blank"}.
+Alternative Matlab code with other examples is also available here [Matlab code and source data] (https://www.dropbox.com/home/nmpaper/Figure%201-source%20data%201).

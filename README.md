@@ -11,7 +11,15 @@ The script computes spike-triggered-average motifs (or montages), spike-triggere
 
 Processing requirements are at least 32GB of ram and preferably a multi-core processor. 
 
-There are several python module dependencies including: numpy, math, mutiplrociseing, scipy, PIL, subprocess and others. They are all standard packages that can be installed using pip or other common methods.
+There are several python module dependencies including: 
+`numpy
+math
+multiprocessing
+scipy
+PIL
+subprocess`
+
+and others. They are all standard packages that can be installed using pip or other common methods.
 
 The code was written to load Multi-Channel-Systems ephys files that align to imaging data. The imaging data files (converted and aligned) should be downloaded and saved into the appropriate directories. We provide examples of cortical and subcortical recordings: [source data on dropbox](https://www.dropbox.com/sh/chet957crw41267/AADgke5NMnM__f4L4PDaK4QHa?dl=0).
 

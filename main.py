@@ -71,10 +71,6 @@ compute_stmtd = False
 view_stmtd = False
 
 
-#Flag for making videos of STM and STMTDs
-animate_images = False
-
-
 #Set this flag along with the correct unit number to compute STMs for all motifs in a recording; This is used for other processing (not included here).
 random_flag = False  
 
@@ -167,11 +163,6 @@ for dir_counter, file_dir in enumerate(exp_dirs):
                 if view_stmtd:
                     View_STMTD(unit, channel, spikes, window, len_frame, file_dir, file_name, area_names, sides, stm_types, spiking_modes)
 
-
-                #Make animated STMTD videos
-                if animate_images: 
-                    Animate_images(unit, channel, window, img_rate, main_dir, file_dir, file_name, n_pixels, spikes, plot_string, n_procs, area_names, sides, depth, stm_types, spiking_modes)
-                
       
         #************************************COMPUTE STMS********************************************
         #Compute and plot Spike-Triggered-Maps (STMS): single frame representations of activity locked to spiking (see Xiao et al Methods)

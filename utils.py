@@ -567,7 +567,7 @@ def View_sta_motif(unit, main_dir, file_dir, file_name, stm_types, img_rate, spi
         
         print filename
 
-        img_stack = mask_data(data, main_dir, midline_mask)
+        img_stack = mask_data(data, main_dir, file_dir, midline_mask)
         
         temp_stack = []
         for p in range(0, len(img_stack), block):
@@ -687,78 +687,6 @@ def bregma_point(event):
         fig.canvas.mpl_disconnect(cid)
         return
 
-def Define_generic_mask(images_processed, main_dir):
-
-    global coords, images_temp, ax, fig, cid
-    
-    images_temp = images_processed.copy()
-
-    fig, ax = plt.subplots()
-
-    if (os.path.exists(main_dir + 'genericmask.txt')==False):
-        coords=[]
-
-        ax.imshow(images_processed[100])#, vmin=0.0, vmax=0.02)
-        ax.set_title("Compute generic (outside the brain) mask")
-        #figManager = plt.get_current_fig_manager()
-        #figManager.window.showMaximized()
-        cid = fig.canvas.mpl_connect('button_press_event', on_click)
-        plt.show()
-
-        #******* MASK AND DISPLAY AREAS OUTSIDE GENERAL MASK 
-        #Search points outside and black them out:
-        all_points = []
-        for i in range(len(images_processed[0][0])):
-            for j in range(len(images_processed[0][0])):
-                all_points.append([i,j])
-
-        all_points = np.array(all_points)
-        vertixes = np.array(coords) 
-        vertixes_path = Path(vertixes)
-        
-        mask = vertixes_path.contains_points(all_points)
-        counter=0
-        coords_save=[]
-        for i in range(len(images_processed[0][0])):
-            for j in range(len(images_processed[0][0])):
-                if mask[counter] == False:
-                    images_processed[100][i][j]=0
-                    coords_save.append([i,j])
-                counter+=1
-
-        fig, ax = plt.subplots()
-        ax.imshow(images_processed[100])
-        plt.show()
-       
-        genericmask_file = main_dir + 'genericmask.txt'
-        np.savetxt(genericmask_file, coords_save)
-
-        print "Finished Making General Mask"
-
-    #else:
-    #    print "Loading saved general mask"
-        
-        
-    if (os.path.exists(main_dir + 'bregmamask.txt')==False):
-        bregma_coords = []
-        print "Making Bregma mask"
-        ax.imshow(images_processed[100])#, vmin=0.0, vmax=0.02)
-        ax.set_title("Compute bregma mask")
-        #figManager = plt.get_current_fig_manager()
-        #figManager.window.showMaximized()
-        cid = fig.canvas.mpl_connect('button_press_event', remove_bregma)
-        plt.show()
-
-       
-        bregmamask_file = main_dir + 'bregmamask.txt'
-        np.savetxt(bregmamask_file, bregma_coords)
-
-        print "Finished Bregma Mask"
-
-    #else:
-    #    print "Loading saved bregma mask"
-        
-    return generic_coords
     
 def mouse_coords(event):
     
@@ -1223,65 +1151,6 @@ def Define_bregma_lambda(images_rotated, main_dir, file_dir, file_name):
     return images_temp
    
     
-def Define_artifact(images_processed, file_dir, file_name, window, n_pixels,img_rate):
-    ''' Tool to manually ablate small regions of imaging area that may be 
-        artifacts '''
-    
-    global coords, images_temp, ax, fig, cid, n_pix, win
-    n_pix = n_pixels
-    win = window
-
-    print "Manual Mask Mode"
-    images_temp = np.array(images_processed).copy()
-    
-    #Load Generic Mask
-    if (os.path.exists(file_dir + 'genericmask.txt')==True):
-        print "Loading existing generic mask"
-        generic_mask_file = file_dir +'genericmask.txt'
-        coords_generic = np.loadtxt(generic_mask_file)
-        #Ablate generic map
-        for i in range(len(images_temp)):
-            for j in range(len(coords_generic)):
-                images_temp[i][min(n_pixels-1,int(coords_generic[j][0]))][min(n_pixels-1,int(coords_generic[j][1]))]=0
-                
-    bregma_mask_file = file_dir + 'bregmamask.txt'
-    if (os.path.exists(bregma_mask_file)==True):
-        bregma_coords = np.loadtxt(bregma_mask_file)
-        print "Loading bregma mask"
-        #Remove centreline artifacts
-        for i in range(len(images_temp)):
-            for j in range(len(bregma_coords)):
-                for k in range(n_pix):
-                    for l in range(7):
-                        images_temp[i][k][min(n_pix-1,int(bregma_coords[1])-3+l)]=0  #DON"T HARDWIRE MID SLICE
-
-    #Load existing artiact  mask file
-    coords=[]
-    specific_mask_file = file_dir +'artifactmask.txt'
-    if (os.path.exists(specific_mask_file)==True):
-        temp_data= np.loadtxt(specific_mask_file)
-        for i in range(len(temp_data)):
-            coords.append(temp_data[i])
-        #update_length=len(coords)
-
-        #Ablate specific map
-        for i in range(len(images_temp)):
-            for j in range(len(coords)):
-                for k in range(7):
-                    for l in range(7):
-                        images_temp[i][min(n_pixels-1,int(coords[j][0])-3+k)][min(n_pixels-1,int(coords[j][1])-3+l)]=0
-    #else:
-        #update_length=0
-        
-        fig, ax = plt.subplots()
-        ax.imshow(images_temp[100])
-        ax.set_title("Remove Artifacts")
-        cid = fig.canvas.mpl_connect('button_press_event', remove_artifact)
-        plt.show()
-    
-    #Save total map containing specific coords
-    if len(coords)>0: np.savetxt(specific_mask_file, np.array(coords))
-
 
 def Ablate_outside_area(n_pixels, contour_coords):
     ''' Function takes points from contour and returns list of coordinates
@@ -1384,7 +1253,7 @@ def Compute_STM(img_rate, window, n_procs, main_dir, file_dir, file_name, n_pixe
 
         #Load General mask (removes background)
         generic_mask_file = []
-        generic_mask_file = main_dir + 'genericmask.txt'
+        generic_mask_file = main_dir + file_dir+'genericmask.txt'
         if (os.path.exists(generic_mask_file)==True):
             generic_coords = np.int16(np.loadtxt(generic_mask_file))
         
@@ -1412,7 +1281,7 @@ def Compute_STM(img_rate, window, n_procs, main_dir, file_dir, file_name, n_pixe
         ax.get_yaxis().set_visible(False)
 
         image_loaded = images_out2 #np.load(stm_filename[:-4]+"_maxmaps.npy")
-        image_loaded = mask_data_single_frame(image_loaded, main_dir, midline_mask)
+        image_loaded = mask_data_single_frame(image_loaded, main_dir, file_dir, midline_mask)
 
         #Process image loaded
         v_max = np.nanmax(np.abs(image_loaded)); v_min = -v_max
@@ -1894,7 +1763,7 @@ def Animate_images(unit, channel, window, img_rate, main_dir, file_dir, file_nam
     
     #Load General mask (removes background)
     generic_mask_file = []
-    generic_mask_file = main_dir + 'genericmask.txt'
+    generic_mask_file = main_dir + file_dir+'genericmask.txt'
     if (os.path.exists(generic_mask_file)==True):
         generic_coords = np.int16(np.loadtxt(generic_mask_file))
     
@@ -2159,13 +2028,13 @@ def animate_data(data):
     
     plt.show()
 
-def mask_data_single_frame(data, main_dir, midline_mask):
+def mask_data_single_frame(data, main_dir, file_dir, midline_mask):
     
     n_pixels = len(data)
             
     #Load General mask (removes background)
     generic_mask_file = []
-    generic_mask_file = main_dir + 'genericmask.txt'        #Mask is in 256 x 256 resolution
+    generic_mask_file = main_dir + file_dir+'genericmask.txt'        #Mask is in 256 x 256 resolution
     if (os.path.exists(generic_mask_file)==False):
         generic_coords = Define_generic_mask(data, main_dir)
     else:
@@ -2189,13 +2058,13 @@ def mask_data_single_frame(data, main_dir, midline_mask):
     
     return temp_array
     
-def mask_data(data, main_dir, midline_mask):
+def mask_data(data, main_dir, file_dir, midline_mask):
     
     n_pixels = len(data[0])
             
     #Load General mask (removes background)
     generic_mask_file = []
-    generic_mask_file = main_dir + 'genericmask.txt'        #Mask is in 256 x 256 resolution
+    generic_mask_file = main_dir + file_dir+'genericmask.txt'        #Mask is in 256 x 256 resolution
     if (os.path.exists(generic_mask_file)==False):
         generic_coords = Define_generic_mask(data, main_dir)
     else:

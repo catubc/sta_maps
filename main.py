@@ -14,15 +14,14 @@ window = 3      #Window of STM motif/montages in seconds
 n_procs=14      #Number of processors to use for parallel sections of code; Ensure not using more than available cores or significant slow down may occur (or crashes)
 
 
-#******************************** SET LOADING DIRECTORIES DEFAULTS *************
-main_dir = ''
-
-file_dirs = []
-file_names = []
-
 #**************** LOAD ALL FILES DATA IN EXPERIMENT DIRECTORY ****************
-file_dirs.append('2015-7-22/') 
-file_names.append([
+main_dir = ''       #Load data from current location; can set to another location
+
+exp_dirs = []       #Experiment directories
+rec_names = []      #Recording from each experiment
+
+exp_dirs.append('2015-7-22/') 
+rec_names.append([
 #'2015-7-22-1',     #cortical recording         #Total cells: 9     #Example cells with good maps or motifs: 0, 1
 '2015-7-22-4',      #subcortical recording      #Total cells: 30    #Example cells with good maps or motifs: 1
 ])
@@ -82,9 +81,9 @@ random_flag = False
 
 #****************************************************************************************
 #Loop over experiments 
-for dir_counter, file_dir in enumerate(file_dirs):
+for dir_counter, file_dir in enumerate(exp_dirs):
 
-    for file_name in file_names[dir_counter]:
+    for file_name in rec_names[dir_counter]:
         ''' These loops search for and load spike rasters saved in .csv files. The raster filenames contain metadata such as # of spikes, channel, and PTP max.
         '''
         #Load units from .csv file name; 

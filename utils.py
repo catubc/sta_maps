@@ -533,6 +533,7 @@ def Compute_sta_motif(unit, channel, all_spikes, window, img_rate, img_times, n_
 def View_sta_motif(unit, main_dir, file_dir, file_name, stm_types, img_rate, spiking_modes, n_spikes):
     
     print "... viewing STA motifs..."
+    print "\n\n"
     
     #Select # of frames to average for display purposes only
     if img_rate < 32:       block = 10  #Number of frames to average for each frame plotted below
@@ -564,8 +565,6 @@ def View_sta_motif(unit, main_dir, file_dir, file_name, stm_types, img_rate, spi
                 break
                 
         data = np.load(filename)
-        
-        print filename
 
         img_stack = mask_data(data, main_dir, file_dir, midline_mask)
         

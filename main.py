@@ -11,7 +11,7 @@ np.seterr(divide='ignore', invalid='ignore')        #Ignore division by zero due
 
 #******Processing info******
 window = 3      #Window of STM motif/montages in seconds
-n_procs=14      #Number of processors to use for parallel sections of code; Ensure not using more than available cores or significant slow down may occur (or crashes)
+n_procs= 4      #Number of processors to use for parallel sections of code (not to exceed # of cores available)
 
 
 #**************** LOAD ALL FILES DATA IN EXPERIMENT DIRECTORY ****************
@@ -22,12 +22,13 @@ rec_names = []      #Recording from each experiment
 
 exp_dirs.append('2015-7-22/') 
 rec_names.append([
-#'2015-7-22-1',     #cortical recording         #Total cells: 9     #Example cells with good maps or motifs: 0, 1
-'2015-7-22-4',      #subcortical recording      #Total cells: 30    #Example cells with good maps or motifs: 1
-])
+#'2015-7-22-1',     #cortical recording         #Example cells with valid maps or motifs: 0, 1, 2
+'2015-7-22-4',      #subcortical recording      #Example cells with valid maps or motifs: 0, 1, 7, 14, 15, 18, 23, 25, 26, 29
+])                                              
 
 #Select cells
-cell_list = [1]
+cell_list = [0,1,2]                                         #Cortical cells with valid STMs
+cell_list = [0, 1, 7, 14, 15, 18, 23, 25, 26, 29]           #Subcortical cells with valid STMs
 
 #Meta data for generating videos and STMTDS post STM processing
 area_names = ['hindlimb', 'forelimb', 'barrel','retrosplenial','visual', 'motor', 'pta', 'acc'] 
@@ -63,7 +64,7 @@ view_sta_motif = True                       #View each unit's STM after processi
 
 
 #Flags for computing STMs
-compute_stm = True
+compute_stm = False
 
 
 #Flags for STMTD computations
@@ -109,7 +110,13 @@ for dir_counter, file_dir in enumerate(exp_dirs):
             
         #Load raw images and rotate + align them
         file_name_aligned = file_dir + file_name+'/'+file_name+'_images_aligned.npy'
-        images_aligned = np.load(file_name_aligned)
+        if os.path.exists(file_name_aligned): 
+            images_aligned = np.load(file_name_aligned)
+        else:
+            print "... missing imaging file..."
+            print "... go to www.github.com/catubc/sta_maps for link to original imaging data ..."
+            
+            quit()
 
         #Load start and end times of imaging system and compute required parameters
         len_frame, img_rate, n_pixels, img_times = Load_images_start_end(file_dir, file_name, images_aligned)
@@ -127,6 +134,7 @@ for dir_counter, file_dir in enumerate(exp_dirs):
 
             #**************** LOOP OVER ALL UNITS IN EXPERIMENT **************************
             for i in range(len(units)):
+                print '\n\n'
                 print "*Processing ", file_name, " unit: ", i+1, " of ", len(units), " unit name: ", units[i]
                 unit=units[i]
                 channel=channels[i]

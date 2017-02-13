@@ -22,7 +22,7 @@ The code is a simplified version of our scripts. It should be run using python 2
 
 There are several option flags in the main.py file which can be set to compute and display: motifs, STMs and STMTDs. 
 
-Assistance with module installation and running can be provided via the issues link.
+Assistance with module installation and running can be provided on github via the "Issues" tab.
 
 
 ###**Matlab Code**

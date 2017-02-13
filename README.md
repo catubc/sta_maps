@@ -27,4 +27,4 @@ Assistance with module installation and running can be provided on github via th
 
 ###**Matlab Code**
 
-Alternative Matlab code with additional examples (and source data for Figure 1 from above reference publication) is also available here: [Matlab code and source data] (https://www.dropbox.com/home/nmpaper/Figure%201-source%20data%201).
+Alternative Matlab code with additional examples (and source data for Figure 1 from above reference publication) is also available here: [Matlab code and source data] (https://www.dropbox.com/sh/l7nk4f6ula0mmte/AAC2YkMT7Z6AE8VAUxDtduiya?dl=0).
